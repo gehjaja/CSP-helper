@@ -1276,7 +1276,7 @@ int main() {
    desc:"给定 n 个整数，先计算平均值 mean，再计算方差 D=Σ(ai-mean)²/n。对每个 ai 输出 (ai-mean)/sqrt(D)。输入保证 D≥1。",
    input:"第一行 n，第二行 n 个整数。n 与整数的绝对值均不超过 1000。",
    output:"输出 n 行归一化后的实数，每个结果的绝对误差不超过 0.0001。",
-   samples:[{in:"3\n-2 0 2",out:"-1.2247448714\n0.0000000000\n1.2247448714"},{in:"2\n1 3",out:"-1\n1"}],
+   samples:[{in:"3\n-2 0 2",out:"-1.2247448714\n0.0000000000\n1.2247448714"},{in:"2\n1 3",out:"-1.0000000000\n1.0000000000"}],
    hint:"均值、方差和平方根都用 double。方差除以 n，输出足够的小数位。时间 O(n)。",
    code:String.raw`#include <iostream>
 #include <iomanip>
@@ -1322,7 +1322,7 @@ int main() {
    desc:"年利率为 r，第 k 年的一笔收支 xk 折算到第 0 年为 xk/(1+r)^k。给出第 0 到第 n 年的预计收支，计算它们的现值总和。正数表示收入，负数表示支出。",
    input:"第一行 n 和实数 r。第二行 n+1 个整数 x0 到 xn。n≤50，0<r<1，|xk|≤1000。",
    output:"输出现值总和，绝对误差不超过 0.1。",
-   samples:[{in:"2 0.1\n-100 55 121",out:"50.0000000000"},{in:"1 0.5\n-100 150",out:"0"}],
+   samples:[{in:"2 0.1\n-100 55 121",out:"50.0000000000"},{in:"1 0.5\n-100 150",out:"0.0000000000"}],
    hint:"从第 0 年开始，折现因子初始为 1，每年乘 1+r。把当前收支除以对应因子并累加。时间 O(n)。",
    code:String.raw`#include <iostream>
 #include <iomanip>
@@ -1657,11 +1657,17 @@ int main() {
 );
 
 // 补充本站边界练习样例，保留全部既有题号及字段。
+//
+// [修补说明 2026-11-16] 这里原先给 Q26 追加的是一条与它已有样例「输入完全相同、
+// 期望格式不同」的记录（in:"2\n1 3"），等于同一组数据给出两个互斥答案；而该题参考
+// 代码用 fixed + setprecision(10)，只会输出 -1.0000000000 这种形式，不可能输出 -1。
+// 现改为输入不重复的边界用例（均值为 0、方差为 1），格式统一为 10 位小数。
+// 同时 validateBank() 新增校验：同一道题内样例输入不得重复。
 BANK.find(function(q){ return q.id === 2; }).samples.push({in:"2\n-2 -1",out:"-1 -1.5 -2"});
 BANK.find(function(q){ return q.id === 7; }).samples.push({in:"3\n0 0 0",out:"0\n0"});
-BANK.find(function(q){ return q.id === 26; }).samples.push({in:"2\n1 3",out:"-1.0000000000\n1.0000000000"});
+BANK.find(function(q){ return q.id === 26; }).samples.push({in:"4\n-1 1 -1 1",out:"-1.0000000000\n1.0000000000\n-1.0000000000\n1.0000000000"});
 BANK.find(function(q){ return q.id === 40; }).samples.push({in:"4\n1 2 2 3",out:"2"});
-var BANK_VERSION = "2026.11.16.2";
+var BANK_VERSION = "2026.11.16.3";
 var CATS = ["全部","模拟","基础语法","字符串","枚举","贪心","二分","动态规划","图论"];
 
 /* =========================================================
@@ -1807,6 +1813,8 @@ function validateBank(){
         q.opts.some(function(s){ return typeof s !== "string" || !s.trim(); }) || !Number.isInteger(q.ans) || q.ans < 0 || q.ans >= q.opts.length) throw new Error("选择题答案或选项无效 " + q.id);
     }else if(!Number.isSafeInteger(q.id) || q.id < 1 || CATS.indexOf(q.cat) < 1 || !Array.isArray(q.samples) || !q.samples.length ||
       q.samples.some(function(s){ return typeof s.in !== "string" || typeof s.out !== "string" || !s.in.trim() || !s.out.trim(); })) throw new Error("编程题样例无效 " + q.id);
+    // [修补] 同一道题的样例输入必须两两不同：重复输入会让同一组数据出现两个答案。
+    else if(new Set(q.samples.map(function(s){ return s.in.trim(); })).size !== q.samples.length) throw new Error("样例输入重复 " + q.id);
   });
 }
 

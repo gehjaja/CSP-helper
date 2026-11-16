@@ -12,6 +12,11 @@ context.validateBank();
 assert.equal(context.BANK.length,40);assert.equal(context.CHOICE.length,56);
 const htmlIds=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 assert.equal(new Set(htmlIds).size,htmlIds.length,'duplicate HTML ids');
+// [修补] 同一道题的样例输入必须两两不同，否则同一组数据会展示出两个互斥答案。
+for(const q of context.BANK){
+  const inputs=q.samples.map(s=>s.in.trim());
+  assert.equal(new Set(inputs).size,inputs.length,'duplicate sample input '+q.id);
+}
 for(let id=1;id<=40;id++)assert.ok(context.byId(id));
 for(let id=1;id<=56;id++)assert.ok(context.byId('c'+id));
 console.log('Bank structure, stable ids, categories, options, answer indices and required fields passed: 96 questions.');
