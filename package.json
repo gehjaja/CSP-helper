@@ -1,0 +1,14 @@
+{
+  "name": "csp-study-assistant",
+  "version": "2.0.0",
+  "private": true,
+  "description": "CCF CSP practice with independent local learner profiles",
+  "scripts": {
+    "test": "node tests/bank.cjs",
+    "test:browser": "node tests/profiles.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.65.1"
+  },
+  "engines": { "node": ">=20" }
+}

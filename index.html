@@ -343,6 +343,12 @@ button:disabled{cursor:default;}
 .bank-result{display:block;text-align:left;width:100%;margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--card);}
 .bank-result strong{display:block;font-size:15px;overflow-wrap:anywhere;}
 .bank-result span{display:block;font-size:12px;color:var(--muted);margin-top:6px;}
+.profile-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;font-size:13px;}
+.profile-bar button,.favorite-btn{padding:8px 12px;border:1px solid var(--line);border-radius:8px;color:var(--brand-text);background:var(--card-2);}
+.profile-bar span{overflow-wrap:anywhere;}
+.profile-id{font-size:12px;color:var(--muted);overflow-wrap:anywhere;}
+.field input[type=text]{width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--card-2);}
+.favorite-btn{margin:6px 0 12px;font-size:14px;}
 @media (hover:hover){
   .btn:hover,.chip:hover,.assess-btn:hover,.opt:not(:disabled):hover{filter:brightness(.96);}
 }
@@ -370,10 +376,13 @@ button:disabled{cursor:default;}
 <header class="appbar">
   <h1 id="barTitle">备考总览</h1>
   <div class="sub" id="barSub">CCF CSP 计算机软件能力认证</div>
+  <div class="profile-bar"><span id="activeProfileName">正在读取学习档案…</span><button onclick="go('me')">切换档案</button></div>
 </header>
 <div class="card" id="storageWarning" role="alert" hidden style="margin:16px;">
-  本地记录无法读取，已暂停保存，避免覆盖原记录。请到「我的」导出原始记录留存，再导入有效备份或清空数据。
+  <span id="storageWarningText">本地记录无法读取，已暂停保存，避免覆盖原记录。</span>
   <button class="btn ghost" onclick="go('me')">管理学习记录</button>
+  <button class="btn ghost" onclick="if(canEdit() && saveDB()) toast('当前档案已保存')">重试保存当前档案</button>
+  <button class="btn ghost" onclick="if(!profileDirty || confirm('当前有未保存的改动，重新读取会丢弃这些改动。建议先导出备份，确定继续吗？')) location.reload()">重新读取档案</button>
 </div>
 
 <!-- ============ 首页 ============ -->
@@ -440,7 +449,7 @@ button:disabled{cursor:default;}
   <div class="practice-source">
     <p id="practiceBankInfo"></p>
     <button onclick="go('bank')">查找题目</button>
-    <button onclick="practiceNew()">练习本次新增题目</button>
+    <button onclick="practiceNew()">练习扩展题目</button>
     <button onclick="go('official')">更多真题 · 官方在线评测 ↗</button>
   </div>
   <div class="chips" id="catChips"></div>
@@ -454,7 +463,7 @@ button:disabled{cursor:default;}
     <div class="bank-filters">
       <div class="field"><label for="bankQuery">题名、年份、题号或关键词</label><input type="search" id="bankQuery" placeholder="例如 202403、归一化、前缀和"></div>
       <div class="field"><label for="bankType">题目类型</label><select id="bankType"><option value="all">全部题目</option><option value="program">编程题</option><option value="choice">选择题</option></select></div>
-      <div class="field"><label for="bankStatus">练习状态</label><select id="bankStatus"><option value="all">全部状态</option><option value="new">未做过</option><option value="wrong">待复习</option><option value="done">已做过</option></select></div>
+      <div class="field"><label for="bankStatus">练习状态</label><select id="bankStatus"><option value="all">全部状态</option><option value="new">未做过</option><option value="wrong">待复习</option><option value="done">已做过</option><option value="favorite">已收藏</option></select></div>
     </div>
     <p class="about" id="bankResultCount" role="status" aria-live="polite"></p>
     <div id="bankResults"></div>
@@ -541,10 +550,26 @@ button:disabled{cursor:default;}
     <h2 class="card-title">累计数据</h2>
     <div id="totalStats"></div>
   </div>
+  <div class="card">
+    <h2 class="card-title">答题历史</h2>
+    <p class="about">编程题记录自评，选择题记录实际作答。旧版累计记录保留，逐次历史从本次升级后开始记录。</p>
+    <div id="historyBody"></div>
+    <button class="btn ghost" id="historyMore">查看更多记录</button>
+  </div>
 </section>
 
 <!-- ============ 我的 ============ -->
 <section class="page" id="page-me">
+  <div class="card">
+    <h2 class="card-title">本地学习档案</h2>
+    <p class="about">每个档案独立保存答题、错题、收藏和学习进度。同一浏览器内可切换使用，换设备请导出、导入备份。档案不设密码，共用设备的人可以切换查看。</p>
+    <div class="field"><label for="profileSelect">当前档案</label><select id="profileSelect"></select></div>
+    <p class="profile-id" id="profileId"></p>
+    <div class="field"><label for="profileName">新档案名称</label><input type="text" id="profileName" maxlength="40" placeholder="例如 小明"></div>
+    <button class="btn" id="btnCreateProfile">创建并切换档案</button>
+    <button class="btn ghost" onclick="showFavorites()">查看我的收藏</button>
+    <p class="about" id="profileNotice" role="status"></p>
+  </div>
   <div class="card">
     <h2 class="card-title">CSP 官方账号</h2>
     <div class="about">前往官方页面登录、注册或进入模拟题库。</div>
@@ -574,12 +599,12 @@ button:disabled{cursor:default;}
   </div>
 
   <div class="card">
-    <h2 class="card-title">数据管理</h2>
-    <div class="about" style="margin-bottom:12px;">数据保存在这台手机浏览器里，换设备或清缓存会丢失，建议定期导出备份。</div>
+    <h2 class="card-title">当前档案的数据管理</h2>
+    <div class="about" style="margin-bottom:12px;">备份、导入和清空仅针对当前档案。数据保存在当前浏览器，建议定期导出备份。</div>
     <button class="btn ghost" id="btnExport" style="margin-top:0;">导出备份</button>
     <button class="btn ghost" id="btnImport">导入备份</button>
     <input type="file" id="fileInput" accept="application/json" style="display:none">
-    <button class="btn danger" id="btnReset">清空全部数据</button>
+    <button class="btn danger" id="btnReset">清空当前档案的学习数据</button>
   </div>
 
   <div class="card">
@@ -1631,6 +1656,12 @@ int main() {
 }`}
 );
 
+// 补充本站边界练习样例，保留全部既有题号及字段。
+BANK.find(function(q){ return q.id === 2; }).samples.push({in:"2\n-2 -1",out:"-1 -1.5 -2"});
+BANK.find(function(q){ return q.id === 7; }).samples.push({in:"3\n0 0 0",out:"0\n0"});
+BANK.find(function(q){ return q.id === 26; }).samples.push({in:"2\n1 3",out:"-1.0000000000\n1.0000000000"});
+BANK.find(function(q){ return q.id === 40; }).samples.push({in:"4\n1 2 2 3",out:"2"});
+var BANK_VERSION = "2026.11.16.2";
 var CATS = ["全部","模拟","基础语法","字符串","枚举","贪心","二分","动态规划","图论"];
 
 /* =========================================================
@@ -1640,8 +1671,8 @@ var CHOICE_CATS = ["全部","C++基础","计算机基础","CSP常识"];
 
 var CHOICE = [
   /* ---------- C++ 基础 ---------- */
-  {id:"c1",cat:"C++基础",q:"C++ 中 int 类型通常占几个字节？",opts:["1","2","4","8"],ans:2,
-   exp:"在绝大多数平台上 int 占 4 个字节（32 位），能表示大约 -21 亿到 21 亿之间的整数。"},
+  {id:"c1",cat:"C++基础",q:"在每字节 8 位、int 为 32 位的平台上，sizeof(int) 的值是多少？",opts:["1","2","4","8"],ans:2,
+   exp:"题设下 32÷8=4 字节。C++ 标准并不保证 int 在所有平台都占 4 字节，实际大小应使用 sizeof(int) 查询。"},
   {id:"c2",cat:"C++基础",q:"下面哪个是合法且避开实现保留名称的 C++ 变量名？",opts:["2num","int","sum_","my-var"],ans:2,
    exp:"sum_ 合法。变量名不能以数字开头、不能使用关键字或包含减号。下划线开头的名称在部分作用域属于实现保留名称，命名时应遵守相应规则。"},
   {id:"c3",cat:"C++基础",q:"在 C++ 中，表达式 7 / 2 的结果是？",opts:["3.5","3","4","3.0"],ans:1,
@@ -1664,8 +1695,8 @@ var CHOICE = [
    exp:"C 风格字符串以 '\\0'（空字符，值为 0）结尾，用来标记字符串到哪里结束。"},
 
   /* ---------- 计算机基础 ---------- */
-  {id:"c12",cat:"计算机基础",q:"1 个字节（byte）等于多少个二进制位（bit）？",opts:["4","8","16","1024"],ans:1,
-   exp:"1 byte = 8 bit，这是计算机里最基础的单位换算。"},
+  {id:"c12",cat:"计算机基础",q:"按现代计算机常用的 8 位字节约定，1 byte 等于多少 bit？",opts:["4","8","16","1024"],ans:1,
+   exp:"在题设的常用约定下，1 byte=8 bit。C++ 中一个 char 占一个字节，每字节的位数由 CHAR_BIT 给出，标准保证至少为 8。"},
   {id:"c13",cat:"计算机基础",q:"二进制数 1010 对应的十进制数是？",opts:["8","10","12","20"],ans:1,
    exp:"按位权展开：1×8 + 0×4 + 1×2 + 0×1 = 8 + 2 = 10。"},
   {id:"c14",cat:"计算机基础",q:"十六进制数 1F 对应的十进制数是？",opts:["15","16","31","32"],ans:2,
@@ -1749,6 +1780,36 @@ CHOICE.push(
    exp:"拓扑序需要尊重所有有向依赖关系，结果可能不唯一。存在有向环时，无法得到包含全部顶点的拓扑序。"}
 );
 
+CHOICE.push(
+  {id:"c51",cat:"计算机基础",q:"数组为 [2, 4, 6, 8]，前缀和 S[0]=0，S[i] 表示前 i 项之和。第 2 至第 4 项之和是多少？",opts:["10","18","20","24"],ans:1,
+   exp:"区间和为 S[4]-S[1]=20-2=18，对应 4+6+8。左端点为 l 时要减去 S[l-1]。"},
+  {id:"c52",cat:"C++基础",q:"执行 vector<int> a{2,4,4,7}; 后，lower_bound(a.begin(),a.end(),4)-a.begin() 等于多少？",opts:["0","1","2","3"],ans:1,
+   exp:"lower_bound 返回首个不小于目标值的位置。第一个 4 的下标是 1，因此结果为 1，前提是该区间按升序排列。"},
+  {id:"c53",cat:"计算机基础",q:"在无权图中，从起点求到其他节点的最少边数，通常选用哪种算法？",opts:["广度优先搜索 BFS","只按节点编号排序","任意深度优先遍历的首次访问距离","最小生成树"],ans:0,
+   exp:"BFS 按距离逐层扩展，使用队列并在入队时标记访问，首次到达节点时即可得到最少边数。不可达节点需单独标记。"},
+  {id:"c54",cat:"C++基础",q:"对于升序 vector<int> a{1,3,5};，lower_bound(a.begin(),a.end(),6) 返回什么？",opts:["a.begin()","指向 5 的迭代器","a.end()","必定抛出异常"],ans:2,
+   exp:"没有不小于 6 的元素时返回末尾迭代器 a.end()。应先判断是否等于 end()，不能直接解引用该迭代器。"},
+  {id:"c55",cat:"计算机基础",q:"要求统计不同单词的数量，同一单词重复出现只算一次，最直接可使用哪种容器？",opts:["允许重复且不作处理的 vector","set<string>","只记录总词数的整数","保存长度的数组"],ans:1,
+   exp:"set 保存互不相同的键。逐个插入单词后，size() 即不同单词数；如果忽略大小写，还需在插入前统一大小写。"},
+  {id:"c56",cat:"C++基础",q:"在 int 为 32 位的平台上，int a=100000,b=100000; 哪个表达式能正确得到 10000000000？",opts:["a*b","(long long)(a*b)","1LL*a*b","(int)(1LL*a*b)"],ans:2,
+   exp:"1LL 让第一次乘法就使用 long long。先执行 int 乘法再转型无法避免有符号溢出；最后再转回 int 也不能保存该数。"}
+);
+
+function validateBank(){
+  var seen = new Set();
+  BANK.concat(CHOICE).forEach(function(q){
+    if(seen.has(String(q.id))) throw new Error("重复题号 " + q.id);
+    seen.add(String(q.id));
+    var fields = isChoice(q) ? ["cat","q","exp"] : ["cat","source","title","limit","desc","input","output","hint","code"];
+    fields.forEach(function(key){ if(typeof q[key] !== "string" || !q[key].trim()) throw new Error("题目字段不完整 " + q.id + ":" + key); });
+    if(isChoice(q)){
+      if(typeof q.id !== "string" || !/^c\d+$/.test(q.id) || CHOICE_CATS.indexOf(q.cat) < 1 || q.opts.length !== 4 || new Set(q.opts).size !== 4 ||
+        q.opts.some(function(s){ return typeof s !== "string" || !s.trim(); }) || !Number.isInteger(q.ans) || q.ans < 0 || q.ans >= q.opts.length) throw new Error("选择题答案或选项无效 " + q.id);
+    }else if(!Number.isSafeInteger(q.id) || q.id < 1 || CATS.indexOf(q.cat) < 1 || !Array.isArray(q.samples) || !q.samples.length ||
+      q.samples.some(function(s){ return typeof s.in !== "string" || typeof s.out !== "string" || !s.in.trim() || !s.out.trim(); })) throw new Error("编程题样例无效 " + q.id);
+  });
+}
+
 var MAJORS = {
   electronic:{name:"电子类",plus:30},
   mech:{name:"机械能动类",plus:10},
@@ -1758,7 +1819,20 @@ var MAJORS = {
 /* =========================================================
    2. 数据存取
    ========================================================= */
-var KEY = "csp_prep_app_v1";
+var LEGACY_KEY = "csp_prep_app_v1";
+var PROFILE_PREFIX = "csp_profile_v2:";
+var ACTIVE_KEY = "csp_active_profile_v2";
+var MIGRATION_KEY = "csp_legacy_migration_v2";
+var KEY = "";
+var activeProfile = null;
+var profileRaw = null;
+var profileRevision = 0;
+var releaseProfileLock = null;
+var profileWritable = false;
+var profileBusy = false;
+var profileEpoch = 0;
+var profileDirty = false;
+var historyLimit = 20;
 
 function blankDB(){
   return {
@@ -1769,7 +1843,10 @@ function blankDB(){
     done:[],       // 自评过的 id
     solved:[],     // 自评「会做」的 id
     qstat:{},      // 逐题自评统计 {id: {a: 自评次数, c: 会做次数}}
-    lastVisit:""   // 上次访问日期，用于累计时长
+    lastVisit:"",  // 上次访问日期
+    favorites:[],
+    history:[],    // 逐次作答，旧版累计数据不伪造成历史
+    progress:null // 两种题型的题序、当前题和已揭晓状态
   };
 }
 
@@ -1806,7 +1883,7 @@ function normalizeDB(obj){
     if(!Number.isFinite(row.seconds) || row.seconds < 0 || row.seconds > Number.MAX_SAFE_INTEGER) throw new Error("学习时长无效");
     result.daily[key] = {answered:answered, correct:correct, seconds:row.seconds};
   });
-  ["wrong", "mastered", "done", "solved"].forEach(function(key){
+  ["wrong", "mastered", "done", "solved", "favorites"].forEach(function(key){
     if(obj[key] === undefined) return;
     if(!Array.isArray(obj[key])) throw new Error("题目记录无效");
     obj[key].forEach(function(id){
@@ -1828,29 +1905,240 @@ function normalizeDB(obj){
     });
   }
   result.lastVisit = validDate(obj.lastVisit) ? obj.lastVisit : "";
+  if(obj.history !== undefined){
+    if(!Array.isArray(obj.history)) throw new Error("答题历史无效");
+    var historyIds = new Set();
+    obj.history.forEach(function(row){
+      if(!object(row) || typeof row.id !== "string" || historyIds.has(row.id) || !Number.isFinite(Date.parse(row.at)) ||
+        typeof row.title !== "string" || typeof row.correct !== "boolean") throw new Error("答题历史无效");
+      var q = byId(row.questionId);
+      if(!q) throw new Error("历史题号无效");
+      if(isChoice(q) ? (row.kind !== "choice" || !Number.isInteger(row.answer) || row.answer < 0 || row.answer >= q.opts.length) :
+        (row.kind !== "program" || ["ok","mid","no"].indexOf(row.answer) === -1)) throw new Error("历史答案无效");
+      historyIds.add(row.id);
+      result.history.push({id:row.id, questionId:q.id, kind:row.kind, answer:row.answer, correct:row.correct,
+        at:row.at, title:row.title, bankVersion:typeof row.bankVersion === "string" ? row.bankVersion : "legacy"});
+    });
+  }
+  result.progress = normalizeProgress(obj.progress);
   return result;
 }
 
-function loadDB(){
-  try{
-    var raw = localStorage.getItem(KEY);
-    if(raw){
-      DB = normalizeDB(JSON.parse(raw));
+function normalizeProgress(value){
+  if(!value || typeof value !== "object") return null;
+  function group(g, isMC){
+    if(!g || !Array.isArray(g.ids) || g.ids.length > (isMC ? CHOICE.length : BANK.length) ||
+      new Set(g.ids.map(String)).size !== g.ids.length || !Number.isInteger(g.idx) || g.idx < 0 || g.idx > g.ids.length) return null;
+    var ids = [];
+    for(var id of g.ids){ var q = byId(id); if(!q || isChoice(q) !== isMC) return null; ids.push(q.id); }
+    var cat = (isMC ? CHOICE_CATS : CATS).indexOf(g.cat) !== -1 ? g.cat : "全部";
+    if(isMC){
+      if(!Number.isInteger(g.chosen) || g.chosen < -1 || g.chosen > 3 || typeof g.revealed !== "boolean" ||
+        (g.revealed && (g.chosen < 0 || g.idx === ids.length)) || (!g.revealed && g.chosen !== -1) ||
+        !Number.isInteger(g.right) || g.right < 0 || g.right > g.idx + (g.revealed ? 1 : 0)) return null;
+      return {ids:ids,cat:cat,idx:g.idx,chosen:g.chosen,revealed:g.revealed,right:g.right};
     }
-    return true;
-  }catch(e){
-    DB = blankDB();
-    storageReadFailed = true;
-    document.getElementById("storageWarning").hidden = false;
-    toast("本地记录读取失败，请导入有效备份");
-    return false;
+    if(["","ok","mid","no"].indexOf(g.level) === -1 || (g.idx === ids.length && g.level)) return null;
+    var tally = {}, sum = 0;
+    for(var c of CATS.slice(1)){
+      var row = g.catTally && g.catTally[c];
+      if(!row) continue;
+      if([row.ok,row.mid,row.no].some(function(n){ return !Number.isSafeInteger(n) || n < 0; })) return null;
+      tally[c] = {ok:row.ok,mid:row.mid,no:row.no}; sum += row.ok + row.mid + row.no;
+    }
+    if(sum !== g.idx + (g.level ? 1 : 0)) return null;
+    return {ids:ids,cat:cat,idx:g.idx,level:g.level,catTally:tally};
   }
+  return {view:Object.prototype.hasOwnProperty.call(TITLES, value.view) ? value.view : "home",
+    practice:group(value.practice, false), choice:group(value.choice, true)};
 }
 
+function captureProgress(){
+  return {view:currentView,
+    practice:{cat:practice.cat,ids:practice.list.map(function(q){return q.id;}),idx:practice.idx,level:practice.level,catTally:practice.catTally},
+    choice:{cat:choice.cat,ids:choice.list.map(function(q){return q.id;}),idx:choice.idx,chosen:choice.chosen,revealed:choice.revealed,right:choice.right}};
+}
+
+function restoreProgress(){
+  var p = DB.progress || {};
+  practice.cat = p.practice ? p.practice.cat : "全部";
+  practice.list = p.practice ? p.practice.ids.map(byId) : [];
+  practice.idx = p.practice ? p.practice.idx : 0;
+  practice.level = p.practice ? p.practice.level : "";
+  practice.catTally = p.practice ? p.practice.catTally : {};
+  practice.sessionStart = 0;
+  choice.cat = p.choice ? p.choice.cat : "全部";
+  choice.list = p.choice ? p.choice.ids.map(byId) : [];
+  choice.idx = p.choice ? p.choice.idx : 0;
+  choice.chosen = p.choice ? p.choice.chosen : -1;
+  choice.revealed = p.choice ? p.choice.revealed : false;
+  choice.right = p.choice ? p.choice.right : 0;
+  historyLimit = 20;
+  document.getElementById("bankQuery").value = "";
+  document.getElementById("bankType").value = "all";
+  document.getElementById("bankStatus").value = "all";
+}
+
+function newId(){ return crypto.randomUUID(); }
+function validProfileId(id){ return typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id); }
+function makeEnvelope(user, data, revision){
+  return {schemaVersion:2,user:user,revision:revision,updatedAt:new Date().toISOString(),data:data};
+}
+function readEnvelope(raw, id){
+  var record = JSON.parse(raw);
+  if(!record || record.schemaVersion !== 2 || !record.user || record.user.id !== id || !validProfileId(id) ||
+    typeof record.user.name !== "string" || !record.user.name.trim() || record.user.name.length > 40 ||
+    !Number.isSafeInteger(record.revision) || record.revision < 0) throw new Error("档案格式无效");
+  return record;
+}
+function listProfiles(){
+  var profiles = [];
+  for(var i = 0; i < localStorage.length; i++){
+    var key = localStorage.key(i);
+    if(key.indexOf(PROFILE_PREFIX) !== 0) continue;
+    var id = key.slice(PROFILE_PREFIX.length);
+    if(!validProfileId(id)) continue;
+    try { profiles.push(readEnvelope(localStorage.getItem(key), id).user); }
+    catch(e){ profiles.push({id:id,name:"需要恢复的档案",createdAt:""}); }
+  }
+  return profiles.sort(function(a,b){ return (a.createdAt || "").localeCompare(b.createdAt || "") || a.id.localeCompare(b.id); });
+}
+
+// 每个档案单独存储。锁覆盖整个编辑会话，阻止同档案多标签页的旧快照覆盖。
+function acquireProfileLock(id){
+  return new Promise(function(resolve){
+    navigator.locks.request(PROFILE_PREFIX + id, {ifAvailable:true}, async function(lock){
+      if(!lock){ resolve(false); return; }
+      await new Promise(function(release){ releaseProfileLock = release; resolve(true); });
+    }).catch(function(){ resolve(false); });
+  });
+}
+function releaseLock(){
+  profileWritable = false;
+  if(releaseProfileLock){ var release = releaseProfileLock; releaseProfileLock = null; release(); }
+}
+function showStorageWarning(message){
+  document.getElementById("storageWarning").hidden = !message;
+  document.getElementById("storageWarningText").textContent = message;
+}
+function canEdit(){
+  if(!activeProfile || profileBusy || !profileWritable){ toast("当前档案暂不可编辑，请查看页面提示或切换档案"); return false; }
+  if(storageReadFailed){ toast("原记录读取失败，请先导出原记录，再导入有效备份或清空当前档案"); return false; }
+  return true;
+}
+function rememberProfile(id){
+  // 标签页保留自己的身份；新窗口沿用最后选中的档案。
+  sessionStorage.setItem(ACTIVE_KEY, id);
+  localStorage.setItem(ACTIVE_KEY, id);
+}
+async function initializeProfiles(){
+  if(!navigator.locks || !crypto.randomUUID) throw new Error("请使用支持本地档案的新版浏览器，通过 HTTPS 打开网站");
+  await navigator.locks.request("csp-profile-migration-v2", async function(){
+    var profiles = listProfiles();
+    if(!localStorage.getItem(MIGRATION_KEY)){
+      var raw = localStorage.getItem(LEGACY_KEY);
+      var migrated = profiles.find(function(p){ return p.legacy === true; });
+      if(raw !== null && !migrated){
+        var user = {id:newId(),name:"原有学习档案",createdAt:new Date().toISOString(),legacy:true};
+        // 不修改旧键。即使旧内容损坏，也保留原文并进入恢复模式。
+        var data = null;
+        try{ data = normalizeDB(JSON.parse(raw)); }catch(e){}
+        var envelope = makeEnvelope(user, data, 0);
+        if(data === null) envelope.recoveryRaw = raw;
+        localStorage.setItem(PROFILE_PREFIX + user.id, JSON.stringify(envelope));
+        migrated = user;
+      }
+      localStorage.setItem(MIGRATION_KEY, migrated ? migrated.id : "none");
+      profiles = listProfiles();
+    }
+    if(!profiles.length){
+      var first = {id:newId(),name:"我的学习档案",createdAt:new Date().toISOString()};
+      localStorage.setItem(PROFILE_PREFIX + first.id, JSON.stringify(makeEnvelope(first, blankDB(), 0)));
+    }
+  });
+  var profiles = listProfiles();
+  var selected = sessionStorage.getItem(ACTIVE_KEY) || localStorage.getItem(ACTIVE_KEY);
+  if(!profiles.some(function(p){ return p.id === selected; })) selected = profiles[0].id;
+  await activateProfile(selected);
+}
+async function activateProfile(id){
+  if(profileBusy || !validProfileId(id)) return false;
+  if(activeProfile && activeProfile.id === id){ renderProfiles(); return true; }
+  if(activeProfile && profileWritable && !storageReadFailed){
+    flushSession();
+    if(!saveDB()) return false;
+  }
+  var targetRaw = localStorage.getItem(PROFILE_PREFIX + id);
+  if(targetRaw === null){ toast("找不到该档案"); return false; }
+  profileBusy = true;
+  profileEpoch++;
+  releaseLock();
+  try{
+    profileWritable = await acquireProfileLock(id);
+    KEY = PROFILE_PREFIX + id;
+    profileRaw = localStorage.getItem(KEY);
+    profileDirty = false;
+    storageReadFailed = false;
+    try{
+      var record = readEnvelope(profileRaw, id);
+      activeProfile = record.user; profileRevision = record.revision;
+      DB = normalizeDB(record.data);
+    }catch(e){
+      activeProfile = {id:id,name:"需要恢复的档案",createdAt:new Date().toISOString()};
+      profileRevision = 0; DB = blankDB(); storageReadFailed = true;
+    }
+    restoreProgress();
+    rememberProfile(id);
+    showStorageWarning(storageReadFailed ? "这个档案的记录无法读取。已暂停保存，请先导出原记录留存，再导入有效备份或清空当前档案。" :
+      (!profileWritable ? "此档案正在另一个标签页使用，本页为只读。请关闭另一页后重新读取，或切换其他档案。" : ""));
+    profileBusy = false;
+    renderProfiles();
+    go(DB.progress ? DB.progress.view : "home");
+    return true;
+  }catch(e){
+    releaseLock(); showStorageWarning("档案切换失败，请重新读取。" + e.message); return false;
+  }finally{ profileBusy = false; }
+}
+async function createProfile(){
+  var name = document.getElementById("profileName").value.trim();
+  if(!name || name.length > 40){ toast("请输入 1～40 个字的档案名称"); return; }
+  if(profileBusy) return;
+  if(activeProfile && profileWritable && !storageReadFailed){ flushSession(); if(!saveDB()) return; }
+  try{
+    var user = {id:newId(),name:name,createdAt:new Date().toISOString()};
+    localStorage.setItem(PROFILE_PREFIX + user.id, JSON.stringify(makeEnvelope(user, blankDB(), 0)));
+    if(await activateProfile(user.id)){ document.getElementById("profileName").value = ""; go("me"); toast("新档案已创建"); }
+  }catch(e){ toast("创建失败，浏览器存储空间或权限不足"); }
+}
+function renderProfiles(){
+  if(!activeProfile) return;
+  document.getElementById("activeProfileName").textContent = "当前档案：" + activeProfile.name + (!profileWritable ? "（只读）" : "");
+  var select = document.getElementById("profileSelect");
+  select.replaceChildren();
+  listProfiles().forEach(function(user){ var option = document.createElement("option"); option.value = user.id; option.textContent = user.name + " · " + user.id.slice(0,8); select.appendChild(option); });
+  select.value = activeProfile.id;
+  document.getElementById("profileId").textContent = "用户 ID：" + activeProfile.id;
+  document.getElementById("profileNotice").textContent = "当前共有 " + select.options.length + " 个本地档案。";
+}
+function writeProfile(data, recovery){
+  if(!activeProfile || !profileWritable || profileBusy || (storageReadFailed && !recovery)) return false;
+  try{
+    if(localStorage.getItem(KEY) !== profileRaw){
+      profileDirty = true;
+      releaseLock(); showStorageWarning("当前档案已被其他页面修改，已停止保存。请导出当前记录留存后重新读取。"); return false;
+    }
+    var raw = JSON.stringify(makeEnvelope(activeProfile, data, profileRevision + 1));
+    localStorage.setItem(KEY, raw);
+    profileRaw = raw; profileRevision++; profileDirty = false;
+    if(recovery){ storageReadFailed = false; showStorageWarning(""); }
+    else showStorageWarning("");
+    return true;
+  }catch(e){ profileDirty = true; showStorageWarning("当前改动尚未保存，浏览器存储空间或权限不足。请导出备份，并在处理后重试保存。"); toast("保存失败，请先导出备份"); return false; }
+}
 function saveDB(){
-  if(storageReadFailed){ toast("原记录读取失败，已暂停保存，请先处理备份"); return false; }
-  try{ localStorage.setItem(KEY, JSON.stringify(DB)); return true; }
-  catch(e){ toast("保存失败，浏览器可能禁用了本地存储"); return false; }
+  if(!activeProfile || !profileWritable || profileBusy || storageReadFailed) return false;
+  DB.progress = captureProgress();
+  return writeProfile(DB, false);
 }
 
 /* ---------- 日期工具 ---------- */
@@ -1888,6 +2176,7 @@ function totalSeconds(){ var s = 0; for(var k in DB.daily) s += DB.daily[k].seco
 /* 学习时长结算：把当前这一段的学习时间计入今天 */
 function flushSession(){
   if(!practice.sessionStart) return;
+  if(!profileWritable || storageReadFailed){ practice.sessionStart = 0; return; }
   var start = practice.sessionStart;
   var end = Date.now();
   while(start < end){
@@ -1942,6 +2231,7 @@ function go(v){
   if(v === "wrong") renderWrong();
   if(v === "stats") renderStats();
   if(v === "me") renderMe();
+  saveDB();
 }
 
 var toastTimer = null;
@@ -1958,7 +2248,7 @@ function toast(msg){
    ========================================================= */
 function renderHome(){
   document.getElementById("programBankCount").textContent = BANK.length;
-  document.getElementById("bankSize").textContent = (BANK.length + CHOICE.length) + " 题 · 11 月 16 日更新";
+  document.getElementById("bankSize").textContent = (BANK.length + CHOICE.length) + " 题 · v" + BANK_VERSION;
   document.getElementById("bankProgress").innerHTML = [
     {label:"编程真题", bank:BANK}, {label:"基础选择题", bank:CHOICE}
   ].map(function(group){
@@ -2052,6 +2342,7 @@ function matchingQuestions(query, type, status){
     if(status === "new" && DB.done.indexOf(q.id) !== -1) return false;
     if(status === "done" && DB.done.indexOf(q.id) === -1) return false;
     if(status === "wrong" && DB.wrong.indexOf(q.id) === -1) return false;
+    if(status === "favorite" && DB.favorites.indexOf(q.id) === -1) return false;
     var text = [q.id, q.title || q.q, q.source || "", q.cat, q.hint || ""].join(" ").toLowerCase();
     return query.split(/\s+/).every(function(word){ return text.indexOf(word) !== -1; });
   });
@@ -2083,6 +2374,7 @@ function openQuestion(id){
 }
 
 function resumeStudyTimer(){
+  if(!profileWritable || profileBusy || storageReadFailed) return;
   var active = (currentView === "practice" && practice.idx < practice.list.length) ||
     (currentView === "choice" && choice.idx < choice.list.length);
   if(active && !document.hidden && !practice.sessionStart) practice.sessionStart = Date.now();
@@ -2097,6 +2389,31 @@ function updateQuestionStatus(id, correct){
     DB.solved = DB.solved.filter(function(x){ return x !== id; });
     DB.mastered = DB.mastered.filter(function(x){ return x !== id; });
   }
+}
+
+function favoriteHtml(q){
+  var saved = DB.favorites.indexOf(q.id) !== -1;
+  return '<button class="favorite-btn" data-favorite="' + q.id + '" aria-pressed="' + saved + '">' + (saved ? "★ 已收藏" : "☆ 收藏此题") + '</button>';
+}
+function toggleFavorite(id){
+  if(!canEdit()) return;
+  var q = byId(id); if(!q) return;
+  var previous = DB.favorites.slice();
+  if(DB.favorites.indexOf(q.id) === -1) DB.favorites.push(q.id);
+  else DB.favorites = DB.favorites.filter(function(value){return value !== q.id;});
+  if(!saveDB()){ DB.favorites = previous; return; }
+  if(currentView === "practice") renderPractice();
+  if(currentView === "choice") renderChoice();
+}
+function showFavorites(){
+  document.getElementById("bankQuery").value = "";
+  document.getElementById("bankType").value = "all";
+  document.getElementById("bankStatus").value = "favorite";
+  go("bank");
+}
+function recordAnswer(q, answer, correct){
+  DB.history.push({id:newId(),questionId:q.id,kind:isChoice(q) ? "choice" : "program",answer:answer,
+    correct:correct,at:new Date().toISOString(),title:q.title || q.q,bankVersion:BANK_VERSION});
 }
 
 /* =========================================================
@@ -2137,7 +2454,7 @@ function practiceNew(){
 
 function renderPractice(){
   document.getElementById("practiceBankInfo").textContent =
-    "本站题库 · " + BANK.length + " 道编程题 · 本次新增 " + BANK.filter(function(q){ return q.id >= 23; }).length + " 题";
+    "本站题库 · " + BANK.length + " 道编程题 · 含 " + BANK.filter(function(q){ return q.id >= 23; }).length + " 道扩展题目";
   var chips = document.getElementById("catChips");
   chips.innerHTML = CATS.map(function(c){
     return '<button class="chip' + (c === practice.cat ? " active" : "") +
@@ -2181,6 +2498,7 @@ function renderPractice(){
       practice.idx = 0; practice.level = ""; practice.catTally = {};
       renderPractice();
     };
+    saveDB();
     return;
   }
 
@@ -2202,6 +2520,7 @@ function renderPractice(){
         '<span>' + q.source + ' · 第 ' + (practice.idx + 1) + ' / ' + practice.list.length + ' 题</span>' +
       '</div>' +
       '<h3 class="prob-title">' + esc(q.title) + '</h3>' +
+      favoriteHtml(q) +
       '<div class="prob-meta">时间限制 ' + q.limit + '</div>' +
       (q.sourceUrl ? '<div class="about">题意整理 · 以下为本站练习样例与参考代码。<a href="' + esc(q.sourceUrl) + '" target="_blank" rel="noopener noreferrer">题意核对来源 ↗</a></div>' : '') +
       '<div class="prob-sec"><h4>题目描述</h4><p>' + esc(q.desc) + '</p></div>' +
@@ -2226,6 +2545,7 @@ function renderPractice(){
   };
   var nb = document.getElementById("btnNext");
   if(nb) nb.onclick = nextQuestion;
+  saveDB();
 }
 
 function solutionHtml(q){
@@ -2242,12 +2562,12 @@ function solutionHtml(q){
 }
 
 function assess(level){
+  if(!canEdit()) return;
   if(practice.level || ["ok", "mid", "no"].indexOf(level) === -1) return;
   var q = practice.list[practice.idx];
   if(!q) return;
-  practice.level = level;
-
   flushSession();
+  practice.level = level;
   var rec = dayRecord(today());
   rec.answered++;
   if(level === "ok") rec.correct++;
@@ -2266,6 +2586,7 @@ function assess(level){
   if(level === "ok") DB.qstat[q.id].c++;
 
   updateQuestionStatus(q.id, level === "ok");
+  recordAnswer(q, level, level === "ok");
 
   saveDB();
   renderPractice();
@@ -2339,6 +2660,7 @@ function renderChoice(){
       choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
       renderChoice();
     };
+    saveDB();
     return;
   }
 
@@ -2363,6 +2685,7 @@ function renderChoice(){
         '<span>第 ' + (choice.idx + 1) + ' / ' + choice.list.length + ' 题</span>' +
       '</div>' +
       '<div class="q-text">' + esc(q.q) + '</div>' +
+      favoriteHtml(q) +
       '<div class="opts">' + optsHtml + '</div>' +
       (choice.revealed ? choiceAnswerHtml(q) : "") +
     '</div>' +
@@ -2377,6 +2700,7 @@ function renderChoice(){
   };
   var nb = document.getElementById("btnCNext");
   if(nb) nb.onclick = nextChoice;
+  saveDB();
 }
 
 function choiceAnswerHtml(q){
@@ -2390,14 +2714,15 @@ function choiceAnswerHtml(q){
 }
 
 function chooseOpt(i){
+  if(!canEdit()) return;
   if(choice.revealed) return;
   var q = choice.list[choice.idx];
   if(!q || !Number.isInteger(i) || i < 0 || i >= q.opts.length) return;
+  flushSession();
   choice.chosen = i;
   choice.revealed = true;
   if(i === q.ans) choice.right++;
 
-  flushSession();
   var rec = dayRecord(today());
   rec.answered++;
   if(i === q.ans) rec.correct++;
@@ -2411,6 +2736,7 @@ function chooseOpt(i){
     DB.qstat[q.id].c++;
   }
   updateQuestionStatus(q.id, i === q.ans);
+  recordAnswer(q, i, i === q.ans);
 
   saveDB();
   renderChoice();
@@ -2467,11 +2793,13 @@ function renderWrong(){
       toast("开始重做：" + q.cat);
     }
     if(ms){
+      if(!canEdit()) return;
       var mq = byId(ms.dataset.master);
       if(!mq) return;
+      var previousWrong = DB.wrong.slice(), previousMastered = DB.mastered.slice();
       DB.wrong = DB.wrong.filter(function(x){ return String(x) !== String(mq.id); });
       if(DB.mastered.indexOf(mq.id) === -1) DB.mastered.push(mq.id);
-      saveDB();
+      if(!saveDB()){ DB.wrong = previousWrong; DB.mastered = previousMastered; return; }
       renderWrong();
       toast("已移出错题本");
     }
@@ -2540,12 +2868,29 @@ function renderStats(){
     '<div class="goal-line"><span class="g-name">已做过的题</span><span class="g-val">' + DB.done.length + ' 题</span></div>' +
     '<div class="goal-line"><span class="g-name">错题本</span><span class="g-val">' + DB.wrong.length + ' 题</span></div>' +
     '<div class="goal-line"><span class="g-name">已攻克（标记掌握）</span><span class="g-val">' + DB.mastered.length + ' 题</span></div>';
+  var attempts = 0, correct = 0;
+  CHOICE.forEach(function(q){ var st = DB.qstat[q.id]; if(st){ attempts += st.a; correct += st.c; } });
+  document.getElementById("totalStats").innerHTML +=
+    '<div class="goal-line"><span class="g-name">选择题正确率</span><span class="g-val">' + (attempts ? Math.round(correct / attempts * 100) + '%' : '--') + '</span></div>' +
+    '<div class="goal-line"><span class="g-name">收藏题目</span><span class="g-val">' + DB.favorites.length + ' 题</span></div>';
+  renderHistory();
+}
+
+function renderHistory(){
+  var rows = DB.history.slice(-historyLimit).reverse();
+  document.getElementById("historyBody").innerHTML = rows.length ? rows.map(function(row){
+    var answer = row.kind === "choice" ? "选择 " + "ABCD"[row.answer] + (row.correct ? " · 正确" : " · 错误") :
+      "自评 · " + ({ok:"会做",mid:"有思路但没做出来",no:"完全不会"})[row.answer];
+    return '<button class="bank-result" data-history="' + row.questionId + '"><strong>' + esc(row.title) + '</strong><span>' + esc(new Date(row.at).toLocaleString() + " · " + answer) + '</span></button>';
+  }).join("") : '<div class="empty">还没有逐次答题记录。</div>';
+  document.getElementById("historyMore").hidden = historyLimit >= DB.history.length;
 }
 
 /* =========================================================
    8. 我的 / 设置
    ========================================================= */
 function renderMe(){
+  renderProfiles();
   document.getElementById("examDate").value = DB.settings.examDate || "";
   document.getElementById("majorSel").value = DB.settings.major || "chem";
   document.getElementById("targetScore").value = DB.settings.targetScore || "";
@@ -2561,8 +2906,20 @@ function updateMajorTip(){
 /* =========================================================
    9. 初始化与事件绑定
    ========================================================= */
-function init(){
-  var loaded = loadDB();
+async function init(){
+  try{ validateBank(); }
+  catch(e){ showStorageWarning("题库校验失败，请刷新或联系维护者：" + e.message); return; }
+  document.getElementById("btnCreateProfile").onclick = createProfile;
+  document.getElementById("profileSelect").onchange = async function(){
+    try{ if(!await activateProfile(this.value)) renderProfiles(); }
+    catch(e){ toast("切换失败，请重新读取档案"); renderProfiles(); }
+  };
+  document.addEventListener("click", function(e){
+    var favorite = e.target.closest("[data-favorite]");
+    if(favorite) toggleFavorite(favorite.dataset.favorite);
+  });
+  document.getElementById("historyBody").onclick = function(e){ var button = e.target.closest("[data-history]"); if(button) openQuestion(button.dataset.history); };
+  document.getElementById("historyMore").onclick = function(){ historyLimit += 20; renderHistory(); };
   document.getElementById("bankQuery").oninput = renderBank;
   document.getElementById("bankType").onchange = renderBank;
   document.getElementById("bankStatus").onchange = renderBank;
@@ -2598,6 +2955,7 @@ function init(){
 
   // 设置项
   document.getElementById("examDate").onchange = function(){
+    if(!canEdit()){ renderMe(); return; }
     var previous = DB.settings.examDate;
     if(this.value && !validDate(this.value)){ this.value = previous; toast("请选择有效的考试日期"); return; }
     DB.settings.examDate = this.value;
@@ -2605,6 +2963,7 @@ function init(){
     else { DB.settings.examDate = previous; this.value = previous; }
   };
   document.getElementById("majorSel").onchange = function(){
+    if(!canEdit()){ renderMe(); return; }
     var previous = DB.settings.major;
     DB.settings.major = this.value;
     if(saveDB()) toast("达标线已更新");
@@ -2612,6 +2971,7 @@ function init(){
     updateMajorTip();
   };
   document.getElementById("targetScore").onchange = function(){
+    if(!canEdit()){ renderMe(); return; }
     if(this.value && (!this.checkValidity() || !Number.isInteger(Number(this.value)))){
       toast("请输入 100～500 之间、以 10 分递增的目标分");
       this.value = DB.settings.targetScore;
@@ -2625,6 +2985,7 @@ function init(){
 
   // 导出
   document.getElementById("btnExport").onclick = function(){
+    if(!activeProfile){ toast("请先创建或读取档案"); return; }
     var data;
     if(storageReadFailed){
       try{ data = localStorage.getItem(KEY); }
@@ -2632,12 +2993,13 @@ function init(){
       if(data === null){ toast("浏览器中没有可导出的原记录"); return; }
     }else{
       flushSession();
-      data = JSON.stringify(DB, null, 2);
+      DB.progress = captureProgress();
+      data = JSON.stringify(makeEnvelope(activeProfile, DB, profileRevision), null, 2);
     }
     var blob = new Blob([data], {type:"application/json"});
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = (storageReadFailed ? "csp-recovery-" : "csp-backup-") + today() + ".json";
+    a.download = (storageReadFailed ? "csp-recovery-" : "csp-backup-") + activeProfile.id + "-" + today() + ".json";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -2650,6 +3012,8 @@ function init(){
     document.getElementById("fileInput").click();
   };
   document.getElementById("fileInput").onchange = function(e){
+    if(!activeProfile || !profileWritable || profileBusy){ e.target.value = ""; toast("当前档案不可导入，请先切换或重新读取"); return; }
+    var importProfileId = activeProfile.id, importEpoch = profileEpoch;
     var f = e.target.files[0];
     if(!f) return;
     if(f.size > 5 * 1024 * 1024){
@@ -2660,16 +3024,16 @@ function init(){
     var rd = new FileReader();
     rd.onload = function(){
       try{
-        var imported = normalizeDB(JSON.parse(rd.result));
-        if(!confirm("导入将替换当前学习记录和设置，确定继续吗？")) return;
-        localStorage.setItem(KEY, JSON.stringify(imported));
+        if(!activeProfile || activeProfile.id !== importProfileId || profileEpoch !== importEpoch){ toast("档案已切换，本次导入已取消"); return; }
+        var parsed = JSON.parse(rd.result);
+        if(parsed.schemaVersion !== undefined && parsed.schemaVersion !== 2) throw new Error("备份版本不支持");
+        var imported = normalizeDB(parsed.schemaVersion === 2 ? parsed.data : parsed);
+        var sourceName = parsed.schemaVersion === 2 && parsed.user ? String(parsed.user.name) : "旧版备份";
+        if(!confirm("将「" + sourceName + "」的学习数据导入当前档案「" + activeProfile.name + "」并替换其记录。其他档案不受影响，当前用户 ID 保持不变。确定继续吗？")) return;
+        if(!writeProfile(imported, true)) return;
         DB = imported;
-        storageReadFailed = false;
-        document.getElementById("storageWarning").hidden = true;
-        practice.list = []; practice.idx = 0; practice.level = ""; practice.catTally = {};
-        practice.sessionStart = 0;
-        choice.list = []; choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
-        renderMe(); renderHome();
+        restoreProgress();
+        go(DB.progress ? DB.progress.view : "me");
         toast("导入成功");
       }catch(err){
         toast("导入失败，请检查备份格式和浏览器存储权限");
@@ -2683,39 +3047,42 @@ function init(){
 
   // 清空
   document.getElementById("btnReset").onclick = function(){
-    if(!confirm("确定清空全部数据吗？做题记录、错题本、设置都会被删除，且无法恢复。")) return;
+    if(!activeProfile || !profileWritable || profileBusy){ toast("当前档案不可清空，请先切换或重新读取"); return; }
+    if(!confirm("确定清空「" + activeProfile.name + "」的学习数据吗？仅清除这个档案的答题、错题、收藏、进度和设置。建议先导出备份，其他档案不受影响。")) return;
     var cleared = blankDB();
-    try{ localStorage.setItem(KEY, JSON.stringify(cleared)); }
-    catch(err){ toast("清空失败，原记录已保留，请检查浏览器存储权限"); return; }
+    if(!writeProfile(cleared, true)) return;
     DB = cleared;
-    storageReadFailed = false;
-    document.getElementById("storageWarning").hidden = true;
-    practice.list = []; practice.idx = 0; practice.level = ""; practice.catTally = {}; practice.sessionStart = 0;
-    choice.list = []; choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
-    renderMe(); renderHome();
-    toast("已清空");
+    restoreProgress(); go("me");
+    toast("当前档案已清空");
   };
 
   // 切后台/锁屏时结算学习时间，回到前台再重新计时
   document.addEventListener("visibilitychange", function(){
     if(document.hidden){
       flushSession();
+      saveDB();
     }else resumeStudyTimer();
   });
-  window.addEventListener("pagehide", flushSession);
-  window.addEventListener("pageshow", resumeStudyTimer);
+  window.addEventListener("pagehide", function(){ flushSession(); saveDB(); releaseLock(); });
+  window.addEventListener("pageshow", function(e){ if(e.persisted) location.reload(); else resumeStudyTimer(); });
+  window.addEventListener("storage", function(e){
+    if(e.key === KEY && e.newValue !== profileRaw){
+      practice.sessionStart = 0; releaseLock();
+      showStorageWarning("当前档案在其他页面发生了变化，本页已停止保存。请重新读取后继续。");
+      renderProfiles();
+    }else if(e.key && e.key.indexOf(PROFILE_PREFIX) === 0 && currentView === "me") renderProfiles();
+  });
   setInterval(function(){
     if(document.hidden || !practice.sessionStart) return;
     flushSession();
     resumeStudyTimer();
   }, 30000);
 
-  // 首次进入记录
-  DB.lastVisit = today();
-  if(loaded) saveDB();
-
-  renderHome();
-  document.querySelector('.navbar [data-view="home"]').setAttribute("aria-current", "page");
+  try{
+    await initializeProfiles();
+    DB.lastVisit = today(); saveDB();
+    renderHome();
+  }catch(e){ showStorageWarning("无法读取本地档案，原记录未被覆盖。" + e.message); }
 }
 
 document.addEventListener("DOMContentLoaded", init);
