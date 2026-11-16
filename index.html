@@ -427,7 +427,8 @@ button:disabled{cursor:default;}
 <!-- ============ 刷题 ============ -->
 <section class="page" id="page-practice">
   <div class="practice-source">
-    <p>本站精选题库 · 22 道编程题 · 自评练习</p>
+    <p id="practiceBankInfo"></p>
+    <button onclick="practiceNew()">练习本次新增题目</button>
     <button onclick="go('official')">更多真题 · 官方在线评测 ↗</button>
   </div>
   <div class="chips" id="catChips"></div>
@@ -558,7 +559,7 @@ button:disabled{cursor:default;}
   <div class="card">
     <h2 class="card-title">怎么用这个 App</h2>
     <div class="about">
-      <b>题库来源：</b>本站收录 22 道 CSP 编程真题，基础选择题为本站自编。更多真题可通过「官方题库与账号入口」前往官方模拟系统练习。<br>
+      <b>题库来源：</b>本站收录 <span id="programBankCount"></span> 道 CSP 编程真题练习，基础选择题为本站自编。新增编程题提供题意整理、本站编写的练习样例和参考代码，可查看题意核对来源。更多真题可通过「官方题库与账号入口」前往官方模拟系统练习。<br>
       <b>怎么做题：</b>先读题，自己在草稿纸上想清楚思路并动手写代码；<br>
       然后诚实地自评三档——<b>会做</b> / <b>有思路但没做出来</b> / <b>完全不会</b>；<br>
       再点开「思路 + 参考代码（C++）」对照，看看差在哪里。<br>
@@ -1073,7 +1074,7 @@ int main(){
     return 0;
 }`},
 
-  {id:21,cat:"枚举",source:"CCF CSP 202009-1",title:"称检测点查询",limit:"1.0s / 256MB",
+  {id:21,cat:"枚举",source:"CCF CSP 202009-1",title:"核酸检测点查询",limit:"1.0s / 256MB",
    desc:"某市设有 n 个核酸检测点，编号从 1 到 n，其中 i 号检测点的位置是平面上的整数坐标 (xi, yi)。为方便预约，请根据市民所在位置 (X, Y)，查询距其最近的三个检测点。\n如果有多个检测点距离相同，编号较小的视为更近。",
    input:"输入共 n + 1 行。\n第一行包含三个整数 n、X、Y（3 ≤ n ≤ 200），表示检测点总数和市民所在位置。\n接下来 n 行，第 i + 1 行包含两个整数 xi、yi，表示 i 号检测点的坐标（所有坐标的绝对值不超过 1000）。",
    output:"输出共三行，按距离从近到远，依次输出距离该市民最近的三个检测点编号。",
@@ -1137,6 +1138,471 @@ int main(){
     return 0;
 }`}
 ];
+
+/* 2026-11-16 扩充。题意按公开资料整理，以下样例与参考代码由本站编写。 */
+BANK.push(
+  {id:23,cat:"模拟",source:"CCF CSP 202112-1",title:"序列查询",limit:"以官方题面为准",
+   sourceUrl:"https://kaitolab.net/blog/csp-202112-1/",
+   desc:"给定严格递增序列 0=A0<A1<…<An<N。对每个整数 x（0≤x<N），令 f(x) 为满足 Ai≤x 的最大下标 i。求所有 f(x) 的和。",
+   input:"第一行是 n、N。第二行是 A1 到 An，A0=0 不在输入中。",
+   output:"输出 f(0)+f(1)+…+f(N-1)，使用整数输出。",
+   samples:[{in:"2 7\n2 5",out:"7"},{in:"1 5\n1",out:"4"}],
+   hint:"在区间 [Ai,A(i+1)) 上，f(x) 恒为 i。补上 A(n+1)=N，累加 i×(A(i+1)-Ai)。时间 O(n)，用 long long 保存总和。",
+   code:String.raw`#include <iostream>
+#include <vector>
+using namespace std;
+int main() {
+    int n;
+    long long N;
+    cin >> n >> N;
+    vector<long long> a(n + 2, 0);
+    for (int i = 1; i <= n; ++i) cin >> a[i];
+    a[n + 1] = N;
+    long long answer = 0;
+    for (int i = 0; i <= n; ++i) answer += i * (a[i + 1] - a[i]);
+    cout << answer << '\n';
+}`},
+  {id:24,cat:"模拟",source:"CCF CSP 202203-1",title:"未初始化警告",limit:"以官方题面为准",
+   sourceUrl:"https://kaitolab.net/blog/csp-202203-1/",
+   desc:"依次执行 k 条赋值语句 ax=ay。变量 a1 到 an 最初均未初始化，a0 代表常量，始终可用。若某条语句的右值尚未初始化，就产生一次警告；无论是否警告，执行后左值均视为已初始化。统计警告次数。",
+   input:"第一行是 n、k。接下来 k 行，每行 x、y，满足 1≤x≤n、0≤y≤n。",
+   output:"输出警告次数。注意 ax=ax 时，也要先检查右值。",
+   samples:[{in:"3 5\n1 1\n2 1\n3 0\n2 3\n1 2",out:"1"},{in:"2 2\n1 2\n2 2",out:"2"}],
+   hint:"使用布尔数组记录初始化状态，先把 a0 标为可用。每条语句先检查 y，再标记 x。时间 O(n+k)。",
+   code:String.raw`#include <iostream>
+#include <vector>
+using namespace std;
+int main() {
+    int n, k;
+    cin >> n >> k;
+    vector<bool> initialized(n + 1, false);
+    initialized[0] = true;
+    int warnings = 0;
+    for (int i = 0; i < k; ++i) {
+        int x, y;
+        cin >> x >> y;
+        if (!initialized[y]) ++warnings;
+        initialized[x] = true;
+    }
+    cout << warnings << '\n';
+}`},
+  {id:25,cat:"枚举",source:"CCF CSP 202203-2",title:"出行计划",limit:"以官方题面为准",
+   sourceUrl:"https://kaitolab.net/blog/csp-202203-2/",
+   desc:"在 q 时刻检测，经过 k 个单位时间后得到结果。对于计划 (t,c)，结果可用于出行的时刻范围是 [q+k,q+k+c-1]。给定 n 项计划，对每个检测时刻 q，统计能满足多少项计划。各次查询独立。",
+   input:"第一行 n、m、k。接下来 n 行是 t、c。最后 m 行各有一个查询 q。t、c、q 为正整数，均不超过 200000。",
+   output:"对每个查询输出满足的计划数，每个答案一行。",
+   samples:[{in:"3 3 2\n3 2\n5 3\n8 1\n1\n2\n6",out:"2\n1\n1"}],
+   hint:"一项计划允许的检测时刻为 [t-k-c+1,t-k]。把合法的正整数区间用差分数组累加，再求前缀和。时间 O(n+m+U)，U 为时间坐标上限。",
+   code:String.raw`#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+int main() {
+    int n, m, k;
+    cin >> n >> m >> k;
+    const int limit = 200000;
+    vector<int> difference(limit + 2, 0);
+    for (int i = 0; i < n; ++i) {
+        int t, c;
+        cin >> t >> c;
+        int left = max(1, t - k - c + 1);
+        int right = t - k;
+        if (left <= right) {
+            ++difference[left];
+            --difference[right + 1];
+        }
+    }
+    for (int i = 1; i <= limit; ++i) difference[i] += difference[i - 1];
+    while (m--) {
+        int q;
+        cin >> q;
+        cout << difference[q] << '\n';
+    }
+}`},
+  {id:26,cat:"基础语法",source:"CCF CSP 202206-1",title:"归一化处理",limit:"以官方题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202206A",
+   desc:"给定 n 个整数，先计算平均值 mean，再计算方差 D=Σ(ai-mean)²/n。对每个 ai 输出 (ai-mean)/sqrt(D)。输入保证 D≥1。",
+   input:"第一行 n，第二行 n 个整数。n 与整数的绝对值均不超过 1000。",
+   output:"输出 n 行归一化后的实数，每个结果的绝对误差不超过 0.0001。",
+   samples:[{in:"3\n-2 0 2",out:"-1.2247448714\n0.0000000000\n1.2247448714"},{in:"2\n1 3",out:"-1\n1"}],
+   hint:"均值、方差和平方根都用 double。方差除以 n，输出足够的小数位。时间 O(n)。",
+   code:String.raw`#include <iostream>
+#include <iomanip>
+#include <vector>
+#include <cmath>
+using namespace std;
+int main() {
+    int n;
+    cin >> n;
+    vector<double> a(n);
+    double sum = 0;
+    for (double &value : a) { cin >> value; sum += value; }
+    double mean = sum / n, variance = 0;
+    for (double value : a) variance += (value - mean) * (value - mean);
+    variance /= n;
+    cout << fixed << setprecision(10);
+    for (double value : a) cout << (value - mean) / sqrt(variance) << '\n';
+}`},
+  {id:27,cat:"基础语法",source:"CCF CSP 202209-1",title:"如此编码",limit:"以官方题面为准",
+   sourceUrl:"https://kaitolab.net/blog/csp-202209-1/",
+   desc:"第 i 道选择题有 ai 个选项，正确答案 bi 满足 0≤bi<ai。令 c0=1、ci=a1×…×ai，将答案编码为 m=c0b1+c1b2+…+c(n-1)bn。根据 m 和 a 数组恢复全部 bi。",
+   input:"第一行 n、m，第二行 n 个选项数 ai。输入保证编码合法，ai≥2。",
+   output:"输出 n 个正确选项编号，以空格分隔。",
+   samples:[{in:"3 17\n2 3 4",out:"1 2 2"},{in:"3 0\n2 2 2",out:"0 0 0"}],
+   hint:"这是混合进制。当前最低位为 m%ai，随后令 m/=ai，再处理下一位。这样无需计算所有前缀乘积。时间 O(n)。",
+   code:String.raw`#include <iostream>
+using namespace std;
+int main() {
+    int n;
+    long long m;
+    cin >> n >> m;
+    for (int i = 0; i < n; ++i) {
+        long long base;
+        cin >> base;
+        if (i) cout << ' ';
+        cout << m % base;
+        m /= base;
+    }
+    cout << '\n';
+}`},
+  {id:28,cat:"基础语法",source:"CCF CSP 202212-1",title:"现值计算",limit:"以官方题面为准",
+   sourceUrl:"https://www.cnblogs.com/kay425/articles/_ccf_kay425.html",
+   desc:"年利率为 r，第 k 年的一笔收支 xk 折算到第 0 年为 xk/(1+r)^k。给出第 0 到第 n 年的预计收支，计算它们的现值总和。正数表示收入，负数表示支出。",
+   input:"第一行 n 和实数 r。第二行 n+1 个整数 x0 到 xn。n≤50，0<r<1，|xk|≤1000。",
+   output:"输出现值总和，绝对误差不超过 0.1。",
+   samples:[{in:"2 0.1\n-100 55 121",out:"50.0000000000"},{in:"1 0.5\n-100 150",out:"0"}],
+   hint:"从第 0 年开始，折现因子初始为 1，每年乘 1+r。把当前收支除以对应因子并累加。时间 O(n)。",
+   code:String.raw`#include <iostream>
+#include <iomanip>
+using namespace std;
+int main() {
+    int n;
+    double rate;
+    cin >> n >> rate;
+    double factor = 1, answer = 0;
+    for (int year = 0; year <= n; ++year) {
+        double cash;
+        cin >> cash;
+        answer += cash / factor;
+        factor *= 1 + rate;
+    }
+    cout << fixed << setprecision(10) << answer << '\n';
+}`},
+  {id:29,cat:"枚举",source:"CCF CSP 202303-1",title:"田地丈量",limit:"以官方题面为准",
+   sourceUrl:"https://cloud.tencent.com/developer/article/2324770",
+   desc:"有 n 块轴对齐矩形田地，任意两块田地的交集面积为 0。给定目标矩形 [0,a]×[0,b]，计算目标区域内已被这些田地覆盖的总面积。边界重合不贡献面积。",
+   input:"第一行 n、a、b。接下来 n 行，每行 x1、y1、x2、y2，为一块田地的左下角和右上角，x1<x2、y1<y2。",
+   output:"输出目标区域内已有田地的面积。",
+   samples:[{in:"3 5 4\n-2 -1 2 2\n2 1 7 3\n0 4 1 6",out:"10"},{in:"1 2 2\n3 3 4 4",out:"0"}],
+   hint:"相交宽度为 max(0,min(x2,a)-max(x1,0))，高度同理。田地之间没有面积重叠，直接累加交集面积。乘法用 long long。时间 O(n)。",
+   code:String.raw`#include <iostream>
+#include <algorithm>
+using namespace std;
+int main() {
+    int n;
+    long long a, b;
+    cin >> n >> a >> b;
+    long long answer = 0;
+    while (n--) {
+        long long x1, y1, x2, y2;
+        cin >> x1 >> y1 >> x2 >> y2;
+        long long width = max(0LL, min(x2, a) - max(x1, 0LL));
+        long long height = max(0LL, min(y2, b) - max(y1, 0LL));
+        answer += width * height;
+    }
+    cout << answer << '\n';
+}`},
+  {id:30,cat:"字符串",source:"CCF CSP 202305-1",title:"重复局面",limit:"以官方题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202305A",
+   desc:"按顺序给出 n 个国际象棋棋盘，每个棋盘是 8×8 字符数组。两个棋盘的全部字符一致时，视为相同局面。对每个棋盘，输出它在目前读入的局面中第几次出现。无需判断走棋是否合法。",
+   input:"第一行 n（n≤100）。随后 8n 行，每行 8 个字符，每连续 8 行表示一个棋盘。",
+   output:"输出 n 行，依次给出该局面的累计出现次数。",
+   samples:[{in:"2\n********\n********\n********\n********\n********\n********\n********\n********\n********\n********\n********\n********\n********\n********\n********\n********",out:"1\n2"}],
+   hint:"把同一个棋盘的 8 行拼接为长度 64 的字符串，作为 map 的键。读到局面后先增加计数再输出。大小写需要保留。",
+   code:String.raw`#include <iostream>
+#include <string>
+#include <map>
+using namespace std;
+int main() {
+    int n;
+    cin >> n;
+    map<string, int> occurrences;
+    while (n--) {
+        string board, row;
+        for (int i = 0; i < 8; ++i) { cin >> row; board += row; }
+        cout << ++occurrences[board] << '\n';
+    }
+}`},
+  {id:31,cat:"模拟",source:"CCF CSP 202309-1",title:"坐标变换（其一）",limit:"以官方题面为准",
+   sourceUrl:"https://developer.aliyun.com/article/1517611",
+   desc:"平面上依次进行 n 次平移，第 i 次将坐标 (x,y) 变为 (x+dxi,y+dyi)。给出 m 个起点，计算每个点经过全部平移后的坐标。",
+   input:"第一行 n、m。接下来 n 行各有 dxi、dyi，随后 m 行各有一个点的坐标 x、y。",
+   output:"输出 m 行，每行两个整数，为变换后的横、纵坐标。",
+   samples:[{in:"2 2\n1 -2\n3 5\n0 0\n-4 2",out:"4 3\n0 5"}],
+   hint:"平移可以叠加。先分别累加所有横向、纵向位移，每个查询只做两次加法。时间 O(n+m)。",
+   code:String.raw`#include <iostream>
+using namespace std;
+int main() {
+    int n, m;
+    cin >> n >> m;
+    long long dx = 0, dy = 0;
+    for (int i = 0; i < n; ++i) {
+        long long x, y;
+        cin >> x >> y;
+        dx += x; dy += y;
+    }
+    while (m--) {
+        long long x, y;
+        cin >> x >> y;
+        cout << x + dx << ' ' << y + dy << '\n';
+    }
+}`},
+  {id:32,cat:"模拟",source:"CCF CSP 202309-2",title:"坐标变换（其二）",limit:"以官方题面为准",
+   sourceUrl:"https://www.nowcoder.com/discuss/599178041100705792",
+   desc:"有 n 次变换：1 k 表示横纵坐标都乘以正数 k；2 θ 表示绕原点逆时针旋转 θ 弧度。对查询 i j x y，求点 (x,y) 依次执行第 i 到第 j 次变换后的坐标。缩放因子及其前缀乘积满足题目的浮点范围约束。",
+   input:"第一行 n、m。接下来 n 行各有操作类型和实数参数；随后 m 行各有 i、j、x、y（1≤i≤j≤n）。",
+   output:"每个查询输出变换后的横、纵坐标，建议保留 10 位小数。",
+   samples:[{in:"3 2\n1 2\n2 1.5707963267948966\n1 0.5\n1 3 1 0\n2 2 2 3",out:"0.0000000000 1.0000000000\n-3.0000000000 2.0000000000"}],
+   hint:"等比例缩放与绕原点旋转可合并。预处理缩放前缀积和旋转角度前缀和，区间用除法与减法获取。保留原始 x、y，同时计算 k(x cosθ-y sinθ) 与 k(x sinθ+y cosθ)。时间 O(n+m)。",
+   code:String.raw`#include <iostream>
+#include <iomanip>
+#include <vector>
+#include <cmath>
+using namespace std;
+int main() {
+    int n, m;
+    cin >> n >> m;
+    vector<double> scale(n + 1, 1), angle(n + 1, 0);
+    for (int i = 1; i <= n; ++i) {
+        int type;
+        double value;
+        cin >> type >> value;
+        scale[i] = scale[i - 1]; angle[i] = angle[i - 1];
+        if (type == 1) scale[i] *= value;
+        else angle[i] += value;
+    }
+    cout << fixed << setprecision(10);
+    while (m--) {
+        int left, right;
+        double x, y;
+        cin >> left >> right >> x >> y;
+        double k = scale[right] / scale[left - 1];
+        double theta = angle[right] - angle[left - 1];
+        double cosine = cos(theta), sine = sin(theta);
+        cout << k * (x * cosine - y * sine) << ' '
+             << k * (x * sine + y * cosine) << '\n';
+    }
+}`},
+  {id:33,cat:"枚举",source:"CCF CSP 202312-1",title:"仓库规划",limit:"以官方题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202312A",
+   desc:"n 个仓库按 1 到 n 编号，每个仓库有 m 维编码。如果仓库 j 的每个编码分量都严格大于仓库 i 的对应分量，j 可以成为 i 的上级。在所有候选中选择编号最小者，没有候选则输出 0。",
+   input:"第一行 n、m（n≤1000，m≤10）。随后 n 行，每行 m 个整数，为各仓库编码，元素绝对值不超过 1000000。",
+   output:"输出 n 行，每行一个上级仓库编号或 0。",
+   samples:[{in:"3 2\n1 1\n2 2\n2 3",out:"2\n0\n0"},{in:"2 1\n5\n5",out:"0\n0"}],
+   hint:"对每个 i 按编号从小到大枚举 j，逐维检查严格大于。第一个合格者就是答案，相等的维度也会使候选失效。时间 O(n²m)。",
+   code:String.raw`#include <iostream>
+#include <vector>
+using namespace std;
+int main() {
+    int n, m;
+    cin >> n >> m;
+    vector<vector<int>> code(n, vector<int>(m));
+    for (auto &row : code) for (int &value : row) cin >> value;
+    for (int i = 0; i < n; ++i) {
+        int parent = 0;
+        for (int j = 0; j < n; ++j) {
+            bool valid = true;
+            for (int k = 0; k < m; ++k) {
+                if (code[j][k] <= code[i][k]) { valid = false; break; }
+            }
+            if (valid) { parent = j + 1; break; }
+        }
+        cout << parent << '\n';
+    }
+}`},
+  {id:34,cat:"模拟",source:"CCF CSP 202403-1",title:"词频统计",limit:"以官方题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202403A",
+   desc:"用 1 到 m 的整数表示单词，给出 n 篇文章。对每个编号，分别统计包含该词的文章篇数，以及该词在全部文章中的出现总次数。同一篇文章中重复出现，只为文章篇数贡献 1。",
+   input:"第一行 n、m（均不超过 100）。接下来 n 行，每行先给文章长度 l，再给 l 个单词编号；1≤l≤100。",
+   output:"输出 m 行，第 i 行为包含单词 i 的文章数和单词 i 的总出现次数。",
+   samples:[{in:"3 4\n3 1 1 2\n2 2 3\n1 1",out:"2 3\n2 2\n1 1\n0 0"}],
+   hint:"总次数每读到一次就增加。用 lastSeen[word] 保存最近统计该单词的文章编号，只有编号不同时才增加文章数。时间 O(总词数+m)。",
+   code:String.raw`#include <iostream>
+#include <vector>
+using namespace std;
+int main() {
+    int n, m;
+    cin >> n >> m;
+    vector<int> articles(m + 1, 0), frequency(m + 1, 0), lastSeen(m + 1, 0);
+    for (int article = 1; article <= n; ++article) {
+        int length;
+        cin >> length;
+        while (length--) {
+            int word;
+            cin >> word;
+            ++frequency[word];
+            if (lastSeen[word] != article) {
+                ++articles[word];
+                lastSeen[word] = article;
+            }
+        }
+    }
+    for (int word = 1; word <= m; ++word)
+        cout << articles[word] << ' ' << frequency[word] << '\n';
+}`},
+  {id:35,cat:"字符串",source:"CCF CSP 202403-2",title:"相似度计算",limit:"以官方题面为准",
+   sourceUrl:"https://www.cnblogs.com/rabbit1103/p/18213192",
+   desc:"给定两篇由英文单词组成的文章，忽略字母大小写，并分别去除重复单词。计算两个单词集合的交集大小和并集大小。",
+   input:"第一行 n、m，第二行是第一篇文章的 n 个词，第三行是第二篇文章的 m 个词。n、m≤10000，每词只含英文字母，长度不超过 10。",
+   output:"第一行输出交集大小，第二行输出并集大小。",
+   samples:[{in:"4 3\nCode code Test APP\napp New TEST",out:"2\n4"},{in:"1 1\nA\na",out:"1\n1"}],
+   hint:"把所有单词转成小写，分别存入两个 set。遍历第一个集合，统计第二个集合中也存在的词数。并集大小=两集合大小之和-交集大小。",
+   code:String.raw`#include <iostream>
+#include <string>
+#include <set>
+#include <cctype>
+using namespace std;
+string readWord() {
+    string word;
+    cin >> word;
+    for (char &letter : word) letter = tolower(static_cast<unsigned char>(letter));
+    return word;
+}
+int main() {
+    int n, m;
+    cin >> n >> m;
+    set<string> first, second;
+    for (int i = 0; i < n; ++i) first.insert(readWord());
+    for (int i = 0; i < m; ++i) second.insert(readWord());
+    int intersection = 0;
+    for (const string &word : first) if (second.count(word)) ++intersection;
+    cout << intersection << '\n' << first.size() + second.size() - intersection << '\n';
+}`},
+  {id:36,cat:"模拟",source:"CCF CSP 202406-1",title:"矩阵重塑（其一）",limit:"以官方题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202406A",
+   desc:"把 n×m 矩阵按行读取为一维序列，再按行依次填入 p×q 矩阵。保证 n×m=p×q。矩阵下标从 0 开始，元素在线性序列中的位置保持不变。",
+   input:"第一行 n、m、p、q，均为正整数，元素总数不超过 10000。随后 n 行，每行 m 个整数，绝对值不超过 1000。",
+   output:"输出 p 行，每行 q 个整数，表示重塑结果。",
+   samples:[{in:"2 3 3 2\n1 2 3\n4 5 6",out:"1 2\n3 4\n5 6"},{in:"1 2 2 1\n-1 5",out:"-1\n5"}],
+   hint:"直接按输入顺序保存全部元素，输出时第 i 行第 j 列取 a[i*q+j]。时间 O(nm)。",
+   code:String.raw`#include <iostream>
+#include <vector>
+using namespace std;
+int main() {
+    int n, m, p, q;
+    cin >> n >> m >> p >> q;
+    vector<int> values(n * m);
+    for (int &value : values) cin >> value;
+    for (int i = 0; i < p; ++i) {
+        for (int j = 0; j < q; ++j) {
+            if (j) cout << ' ';
+            cout << values[i * q + j];
+        }
+        cout << '\n';
+    }
+}`},
+  {id:37,cat:"模拟",source:"CCF CSP 202406-2",title:"矩阵重塑（其二）",limit:"以官方题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202406B",
+   desc:"维护一个矩阵，支持按行重塑、矩阵转置和单点查询。1 p q 表示重塑成 p×q；2 0 0 表示转置；3 i j 表示查询当前矩阵第 i 行第 j 列。下标从 0 开始，输入保证操作合法。",
+   input:"第一行 n、m、t。随后 n 行，每行 m 个整数。接下来 t 行，每行 op、a、b。元素总数不超过 10000，t≤100000，其中转置最多 100 次。",
+   output:"每个类型 3 的操作输出一行，包含查询到的元素。",
+   samples:[{in:"2 3 5\n1 2 3\n4 5 6\n3 1 2\n2 0 0\n3 1 0\n1 2 3\n3 1 0",out:"6\n2\n5"}],
+   hint:"用行优先一维数组保存矩阵。重塑只改行列数，查询用 i*m+j。转置时将旧位置 i*m+j 搬到新位置 j*n+i，然后交换行列数。时间 O(t+转置次数×元素数)。",
+   code:String.raw`#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+int main() {
+    int n, m, t;
+    cin >> n >> m >> t;
+    vector<int> values(n * m);
+    for (int &value : values) cin >> value;
+    while (t--) {
+        int operation, a, b;
+        cin >> operation >> a >> b;
+        if (operation == 1) { n = a; m = b; }
+        else if (operation == 2) {
+            vector<int> transposed(values.size());
+            for (int i = 0; i < n; ++i)
+                for (int j = 0; j < m; ++j) transposed[j * n + i] = values[i * m + j];
+            values.swap(transposed);
+            swap(n, m);
+        } else cout << values[a * m + b] << '\n';
+    }
+}`},
+  {id:38,cat:"枚举",source:"CCF CSP 202006-2",title:"稀疏向量",limit:"以官方题面为准",
+   sourceUrl:"https://kaitolab.net/blog/csp-202006-2/",
+   desc:"两个 n 维整数向量仅保存非零项。每一项由下标和数值组成，下标严格递增。求两个向量的内积，即各维度对应数值乘积之和。未出现的维度取值为 0。",
+   input:"第一行 n、a、b，分别为维度和两个向量的非零项数。随后 a 行给第一个向量，再用 b 行给第二个向量，每行两个整数 index、value。",
+   output:"输出内积，结果使用 64 位整数保存。",
+   samples:[{in:"5 2 3\n1 3\n4 -2\n1 4\n2 7\n4 5",out:"2"},{in:"3 1 1\n1 2\n3 5",out:"0"}],
+   hint:"双指针从两个有序下标表起点出发。下标相同就累加乘积并同时前进，否则推进下标较小的一侧。时间 O(a+b)，避免按 n 分配数组。",
+   code:String.raw`#include <iostream>
+#include <vector>
+#include <utility>
+using namespace std;
+int main() {
+    long long n;
+    int a, b;
+    cin >> n >> a >> b;
+    vector<pair<long long, long long>> first(a), second(b);
+    for (auto &item : first) cin >> item.first >> item.second;
+    for (auto &item : second) cin >> item.first >> item.second;
+    int i = 0, j = 0;
+    long long answer = 0;
+    while (i < a && j < b) {
+        if (first[i].first == second[j].first) {
+            answer += first[i].second * second[j].second;
+            ++i; ++j;
+        } else if (first[i].first < second[j].first) ++i;
+        else ++j;
+    }
+    cout << answer << '\n';
+}`},
+  {id:39,cat:"贪心",source:"CCF CSP 201709-1",title:"打酱油",limit:"以官方题面为准",
+   sourceUrl:"https://www.cnblogs.com/wydxry/p/10730162.html",
+   desc:"每瓶酱油售价 10 元。购买时可以把瓶数分组，采用买 3 瓶送 1 瓶或买 5 瓶送 2 瓶的优惠，赠品不参与下一轮赠送。给定预算，求最多能拿到多少瓶。",
+   input:"输入预算 N，为 10 的正整数倍，N≤300。",
+   output:"输出最多能得到的瓶数。",
+   samples:[{in:"100",out:"14"},{in:"30",out:"4"},{in:"10",out:"1"}],
+   hint:"先尽量使用 50 元得 7 瓶的组合，再用余款购买 30 元得 4 瓶的组合，剩下的钱按 10 元一瓶购买。也可枚举组合验证。",
+   code:String.raw`#include <iostream>
+using namespace std;
+int main() {
+    int budget;
+    cin >> budget;
+    int answer = budget / 50 * 7;
+    budget %= 50;
+    answer += budget / 30 * 4;
+    budget %= 30;
+    answer += budget / 10;
+    cout << answer << '\n';
+}`},
+  {id:40,cat:"枚举",source:"CCF CSP 201612-1",title:"中间数",limit:"以官方题面为准",
+   sourceUrl:"https://www.cnblogs.com/wydxry/p/10729843.html",
+   desc:"如果一个序列中，严格大于某个数的元素个数，等于严格小于它的元素个数，则称它为中间数。找出中间数的值。相等的元素不计入任意一侧，候选必须出现在原序列中。",
+   input:"第一行 n，第二行 n 个正整数。n≤1000，每个数不超过 1000。",
+   output:"存在中间数则输出其值，否则输出 -1。",
+   samples:[{in:"5\n1 2 2 2 3",out:"2"},{in:"4\n1 2 3 4",out:"-1"},{in:"3\n5 5 5",out:"5"}],
+   hint:"排序后候选取 a[n/2]。重新扫描序列，统计严格小于与严格大于它的个数，相等时输出候选。普通中位数未必满足本题条件。时间 O(n log n)。",
+   code:String.raw`#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+int main() {
+    int n;
+    cin >> n;
+    vector<int> values(n);
+    for (int &value : values) cin >> value;
+    sort(values.begin(), values.end());
+    int candidate = values[n / 2], less = 0, greater = 0;
+    for (int value : values) {
+        if (value < candidate) ++less;
+        if (value > candidate) ++greater;
+    }
+    cout << (less == greater ? candidate : -1) << '\n';
+}`}
+);
 
 var CATS = ["全部","模拟","基础语法","字符串","枚举","贪心","二分","动态规划","图论"];
 
@@ -1216,6 +1682,45 @@ var CHOICE = [
   {id:"c32",cat:"CSP常识",q:"做 CSP 题时，下面哪种做法是正确的？",opts:["样例过了就一定满分","只需考虑题目给的最小数据范围","按题目给出的数据规模设计算法，并注意时间和内存限制","同一年只能参加一次"],ans:2,
    exp:"CSP 按数据规模分层给分，必须针对最大规模设计算法，否则大数据点会超时或超内存。"}
 ];
+
+CHOICE.push(
+  {id:"c33",cat:"C++基础",q:"vector<int> a(5, 2); 执行后，a.size() 的值是多少？",opts:["2","5","7","10"],ans:1,
+   exp:"构造函数的第一个参数表示元素个数，第二个参数表示每个元素的初始值。这里创建 5 个值为 2 的元素。"},
+  {id:"c34",cat:"C++基础",q:"int x=100000, y=100000; 需要计算并保存 x*y，下面哪种写法能避免乘法先在 int 中溢出？",opts:["long long z=x*y;","long long z=1LL*x*y;","int z=x*y;","long long z=(long long)(x*y);"],ans:1,
+   exp:"1LL*x 先提升到 long long，后续乘法在 long long 中进行。仅在赋值后或整个乘法结束后转换，无法修复之前的有符号整数溢出。"},
+  {id:"c35",cat:"C++基础",q:"在升序序列中，lower_bound(begin,end,x) 通常用来寻找什么？",opts:["第一个等于 x 的元素，且保证存在","最后一个小于 x 的元素","第一个大于等于 x 的位置","第一个严格大于 x 的位置"],ans:2,
+   exp:"lower_bound 返回第一个不小于 x 的位置，可能是 end。若要判断 x 是否存在，还需检查返回位置和值。"},
+  {id:"c36",cat:"C++基础",q:"依次向 set<int> 插入 3、1、3、2 后，集合包含几个元素？",opts:["2","3","4","不确定"],ans:1,
+   exp:"set 保留互不相同的键。两次插入 3 只会保留一个，因此集合为 {1,2,3}。"},
+  {id:"c37",cat:"C++基础",q:"map<string,int> count; 初始为空，执行 ++count[\"hello\"]; 后对应值是多少？",opts:["0","1","未定义","编译错误"],ans:1,
+   exp:"对不存在的键使用 operator[] 会插入一个值初始化的 int，即 0，再进行前置自增后得到 1。"},
+  {id:"c38",cat:"C++基础",q:"为 std::sort 编写整数升序比较函数时，下面哪种返回条件满足严格弱序要求？",opts:["a <= b","a < b","a == b","true"],ans:1,
+   exp:"升序比较使用 a<b。相等时应返回 false，使用 <= 会破坏比较器要求，排序行为可能异常。"},
+  {id:"c39",cat:"计算机基础",q:"数组采用 1 起始下标，S[0]=0，S[i]=a[1]+…+a[i]。区间 [l,r] 的和应如何计算？",opts:["S[r]-S[l]","S[r]-S[l-1]","S[r+1]-S[l-1]","S[r]+S[l]"],ans:1,
+   exp:"S[r] 包含前 r 项，减去前 l-1 项，恰好留下第 l 到第 r 项。"},
+  {id:"c40",cat:"计算机基础",q:"使用差分数组，把闭区间 [l,r] 中的每个数加 1，标准更新是？",opts:["d[l]++，d[r]--","d[l]++，d[r+1]--","d[l-1]++，d[r]--","d[l]--，d[r+1]++"],ans:1,
+   exp:"在 l 处增加贡献，在 r+1 处撤销贡献。最后求前缀和恢复各位置的增量，数组需要预留 r+1。"},
+  {id:"c41",cat:"计算机基础",q:"对答案进行二分查找时，判定函数通常应具备什么性质？",opts:["结果随机变化","具有可用于划分区间的单调性","必须使用递归","必须枚举所有答案"],ans:1,
+   exp:"可行性应随答案单调变化，例如先不可行后可行。这样每次判定才能排除一半搜索区间。"},
+  {id:"c42",cat:"计算机基础",q:"队列最基本的取出顺序是什么？",opts:["后进先出","先进先出","优先取最大值","随机取出"],ans:1,
+   exp:"普通队列遵循 FIFO，即先进先出。广度优先搜索可用队列按层扩展节点。"},
+  {id:"c43",cat:"计算机基础",q:"检查括号是否正确匹配时，通常使用哪种数据结构保存尚未配对的左括号？",opts:["栈","普通队列","堆","邻接矩阵"],ans:0,
+   exp:"右括号需要与最近出现且尚未匹配的左括号配对，符合栈的后进先出特征。"},
+  {id:"c44",cat:"计算机基础",q:"0/1 背包压缩成一维 dp 后，为使每件物品最多使用一次，容量通常如何遍历？",opts:["从小到大","从大到小","随机顺序","只遍历容量 0"],ans:1,
+   exp:"从大到小更新时，dp[v-w] 仍是处理当前物品之前的状态，能避免同一轮重复使用当前物品。"},
+  {id:"c45",cat:"C++基础",q:"C++ 标准对 long long 的整数位宽保证至少是多少位？",opts:["8 位","16 位","32 位","64 位"],ans:3,
+   exp:"long long 至少为 64 位。统计大规模整数乘积或累计结果时常用该类型，并应在运算前完成类型提升。"},
+  {id:"c46",cat:"C++基础",q:"在 C++14 中，表达式 -7 % 3 的值是多少？",opts:["-1","1","2","-2"],ans:0,
+   exp:"整数除法向 0 截断，-7/3 为 -2。由 a=(a/b)*b+a%b 得 -7=(-2)*3+(-1)，余数为 -1。"},
+  {id:"c47",cat:"计算机基础",q:"题目允许浮点结果绝对误差不超过 0.0001，编写程序时哪种做法更合适？",opts:["所有中间结果都用 int","使用 double 并输出足够的小数位","先把结果四舍五入为整数","只输出小数点后一位"],ans:1,
+   exp:"浮点计算应避免整数截断，并输出足够精度。比较结果时也应按题目给出的误差标准处理。"},
+  {id:"c48",cat:"计算机基础",q:"n=200000 时，若双重循环各执行 n 次，循环体总共大约执行多少次？",opts:["200000","400000","40000000000","200000000"],ans:2,
+   exp:"n²=200000×200000=40000000000，约 400 亿次。设计大数据规模解法时应估计复杂度。"},
+  {id:"c49",cat:"计算机基础",q:"用邻接表表示一条连接 u 和 v 的无向边时，通常怎样存储？",opts:["只保存 u 到 v","只保存 v 到 u","同时保存 u 到 v 和 v 到 u","把这条边删除"],ans:2,
+   exp:"无向边可以从两个端点沿任一方向访问，因此邻接表通常保存两个方向的记录。"},
+  {id:"c50",cat:"计算机基础",q:"对有向无环图进行拓扑排序，可以得到什么？",opts:["按节点编号从小到大的唯一序列","使每条有向边起点都排在终点之前的序列","所有节点之间的最短距离","最小生成树"],ans:1,
+   exp:"拓扑序需要尊重所有有向依赖关系，结果可能不唯一。存在有向环时，无法得到包含全部顶点的拓扑序。"}
+);
 
 var MAJORS = {
   electronic:{name:"电子类",plus:30},
@@ -1419,7 +1924,8 @@ function toast(msg){
    4. 首页渲染
    ========================================================= */
 function renderHome(){
-  document.getElementById("bankSize").textContent = (BANK.length + CHOICE.length) + " 题";
+  document.getElementById("programBankCount").textContent = BANK.length;
+  document.getElementById("bankSize").textContent = (BANK.length + CHOICE.length) + " 题 · 11 月 16 日更新";
   document.getElementById("bankProgress").innerHTML = [
     {label:"编程真题", bank:BANK}, {label:"基础选择题", bank:CHOICE}
   ].map(function(group){
@@ -1532,7 +2038,18 @@ function buildList(cat){
   return pool;
 }
 
+function practiceNew(){
+  practice.cat = "全部";
+  practice.list = BANK.filter(function(q){ return q.id >= 23; });
+  practice.idx = 0;
+  practice.level = "";
+  practice.catTally = {};
+  go("practice");
+}
+
 function renderPractice(){
+  document.getElementById("practiceBankInfo").textContent =
+    "本站题库 · " + BANK.length + " 道编程题 · 本次新增 " + BANK.filter(function(q){ return q.id >= 23; }).length + " 题";
   var chips = document.getElementById("catChips");
   chips.innerHTML = CATS.map(function(c){
     return '<button class="chip' + (c === practice.cat ? " active" : "") +
@@ -1597,6 +2114,7 @@ function renderPractice(){
       '</div>' +
       '<h3 class="prob-title">' + esc(q.title) + '</h3>' +
       '<div class="prob-meta">时间限制 ' + q.limit + '</div>' +
+      (q.sourceUrl ? '<div class="about">题意整理 · 以下为本站练习样例与参考代码。<a href="' + esc(q.sourceUrl) + '" target="_blank" rel="noopener noreferrer">题意核对来源 ↗</a></div>' : '') +
       '<div class="prob-sec"><h4>题目描述</h4><p>' + esc(q.desc) + '</p></div>' +
       '<div class="prob-sec"><h4>输入格式</h4><p>' + esc(q.input) + '</p></div>' +
       '<div class="prob-sec"><h4>输出格式</h4><p>' + esc(q.output) + '</p></div>' +
