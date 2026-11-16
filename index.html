@@ -337,6 +337,12 @@ button:disabled{cursor:default;}
 .practice-source{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
 .practice-source p{margin:0;font-size:13px;color:var(--muted);}
 .practice-source button{padding:9px 14px;background:var(--brand-soft);color:var(--brand-text);border-radius:var(--radius-sm);font-size:14px;}
+.bank-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+.bank-filters .field{margin:0;min-width:0;}
+.bank-filters input,.bank-filters select{width:100%;padding:12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--card-2);}
+.bank-result{display:block;text-align:left;width:100%;margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--card);}
+.bank-result strong{display:block;font-size:15px;overflow-wrap:anywhere;}
+.bank-result span{display:block;font-size:12px;color:var(--muted);margin-top:6px;}
 @media (hover:hover){
   .btn:hover,.chip:hover,.assess-btn:hover,.opt:not(:disabled):hover{filter:brightness(.96);}
 }
@@ -365,6 +371,10 @@ button:disabled{cursor:default;}
   <h1 id="barTitle">备考总览</h1>
   <div class="sub" id="barSub">CCF CSP 计算机软件能力认证</div>
 </header>
+<div class="card" id="storageWarning" role="alert" hidden style="margin:16px;">
+  本地记录无法读取，已暂停保存，避免覆盖原记录。请到「我的」导出原始记录留存，再导入有效备份或清空数据。
+  <button class="btn ghost" onclick="go('me')">管理学习记录</button>
+</div>
 
 <!-- ============ 首页 ============ -->
 <section class="page active" id="page-home">
@@ -407,6 +417,7 @@ button:disabled{cursor:default;}
   <div class="card">
     <h2 class="card-title">题库进度 <span class="hint" id="bankSize"></span></h2>
     <div id="bankProgress"></div>
+    <button class="btn ghost" onclick="go('bank')">浏览题库 · 查找指定题目</button>
   </div>
 
   <div class="card" style="margin-top:12px;">
@@ -428,6 +439,7 @@ button:disabled{cursor:default;}
 <section class="page" id="page-practice">
   <div class="practice-source">
     <p id="practiceBankInfo"></p>
+    <button onclick="go('bank')">查找题目</button>
     <button onclick="practiceNew()">练习本次新增题目</button>
     <button onclick="go('official')">更多真题 · 官方在线评测 ↗</button>
   </div>
@@ -436,6 +448,19 @@ button:disabled{cursor:default;}
 </section>
 
 <!-- ============ 官方资源 ============ -->
+<section class="page" id="page-bank">
+  <div class="card">
+    <h2 class="card-title">题库目录</h2>
+    <div class="bank-filters">
+      <div class="field"><label for="bankQuery">题名、年份、题号或关键词</label><input type="search" id="bankQuery" placeholder="例如 202403、归一化、前缀和"></div>
+      <div class="field"><label for="bankType">题目类型</label><select id="bankType"><option value="all">全部题目</option><option value="program">编程题</option><option value="choice">选择题</option></select></div>
+      <div class="field"><label for="bankStatus">练习状态</label><select id="bankStatus"><option value="all">全部状态</option><option value="new">未做过</option><option value="wrong">待复习</option><option value="done">已做过</option></select></div>
+    </div>
+    <p class="about" id="bankResultCount" role="status" aria-live="polite"></p>
+    <div id="bankResults"></div>
+  </div>
+</section>
+
 <section class="page" id="page-official">
   <div class="card">
     <h2 class="card-title">官方题库与账号</h2>
@@ -484,6 +509,7 @@ button:disabled{cursor:default;}
 
 <!-- ============ 基础选择题 ============ -->
 <section class="page" id="page-choice">
+  <div class="practice-source"><button onclick="go('bank')">查找题目</button></div>
   <div class="chips" id="choiceChips"></div>
   <div id="choiceBody"></div>
 </section>
@@ -492,7 +518,7 @@ button:disabled{cursor:default;}
 <section class="page" id="page-wrong">
   <div class="card" style="margin-bottom:12px;">
     <h2 class="card-title">错题本 <span class="hint" id="wrongCount">0 题</span></h2>
-    <div class="about">自评「完全不会」的题会自动收进这里。弄懂之后可以点「已掌握」把它移出。</div>
+    <div class="about">自评「有思路但没做出来」「完全不会」及答错的选择题会自动收进这里。弄懂之后可以点「已掌握」把它移出。</div>
   </div>
   <div id="wrongBody"></div>
 </section>
@@ -563,7 +589,7 @@ button:disabled{cursor:default;}
       <b>怎么做题：</b>先读题，自己在草稿纸上想清楚思路并动手写代码；<br>
       然后诚实地自评三档——<b>会做</b> / <b>有思路但没做出来</b> / <b>完全不会</b>；<br>
       再点开「思路 + 参考代码（C++）」对照，看看差在哪里。<br>
-      <b>记什么：</b>「会做」计入掌握率；「完全不会」自动进错题本，方便二刷。<br>
+      <b>记什么：</b>「会做」计入掌握率；「有思路但没做出来」和「完全不会」自动进错题本，方便二刷。再次答错会撤销该题的掌握标记。<br>
       <b>基础选择题：</b>底部「选择」页里是 C++ 语法、计算机基础、CSP 常识的单选题，点选项后会立刻自动判分并给解析；答错的题同样进错题本。<br>
       <b>在线评测：</b>通过官方模拟考试系统提交代码并查看得分。
     </div>
@@ -1748,6 +1774,7 @@ function blankDB(){
 }
 
 var DB = blankDB();
+var storageReadFailed = false;
 
 function validDate(value){
   if(typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -1813,12 +1840,15 @@ function loadDB(){
     return true;
   }catch(e){
     DB = blankDB();
+    storageReadFailed = true;
+    document.getElementById("storageWarning").hidden = false;
     toast("本地记录读取失败，请导入有效备份");
     return false;
   }
 }
 
 function saveDB(){
+  if(storageReadFailed){ toast("原记录读取失败，已暂停保存，请先处理备份"); return false; }
   try{ localStorage.setItem(KEY, JSON.stringify(DB)); return true; }
   catch(e){ toast("保存失败，浏览器可能禁用了本地存储"); return false; }
 }
@@ -1877,6 +1907,7 @@ function flushSession(){
 var TITLES = {
   home:["备考总览","CCF CSP 计算机软件能力认证"],
   practice:["真题练习","看真题题面，自评掌握情况"],
+  bank:["题库目录","按题名、年份和练习状态找题"],
   official:["官方题库与账号","CCF CSP 官方模拟考试及登录入口"],
   choice:["基础选择题","自动判分，巩固基本功"],
   wrong:["错题本","反复练，直到不再错"],
@@ -1894,7 +1925,7 @@ function go(v){
   document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
   document.getElementById("page-" + v).classList.add("active");
   document.querySelectorAll(".navbar button").forEach(function(b){
-    var active = b.dataset.view === v || (v === "official" && b.dataset.view === "practice");
+    var active = b.dataset.view === v || ((v === "official" || v === "bank") && b.dataset.view === "practice");
     b.classList.toggle("active", active);
     if(active) b.setAttribute("aria-current", "page");
     else b.removeAttribute("aria-current");
@@ -1904,8 +1935,9 @@ function go(v){
   window.scrollTo(0,0);
   currentView = v;
 
-  if(v === "practice"){ practice.sessionStart = Date.now(); renderPractice(); }
-  if(v === "choice"){ practice.sessionStart = Date.now(); renderChoice(); }
+  if(v === "practice") renderPractice();
+  if(v === "choice") renderChoice();
+  if(v === "bank") renderBank();
   if(v === "home") renderHome();
   if(v === "wrong") renderWrong();
   if(v === "stats") renderStats();
@@ -2012,6 +2044,61 @@ function byId(id){
 /* 有 opts 字段的是选择题，否则是编程真题 */
 function isChoice(q){ return q && q.opts !== undefined; }
 
+function matchingQuestions(query, type, status){
+  query = query.trim().toLowerCase();
+  return BANK.concat(CHOICE).filter(function(q){
+    if(type === "program" && isChoice(q)) return false;
+    if(type === "choice" && !isChoice(q)) return false;
+    if(status === "new" && DB.done.indexOf(q.id) !== -1) return false;
+    if(status === "done" && DB.done.indexOf(q.id) === -1) return false;
+    if(status === "wrong" && DB.wrong.indexOf(q.id) === -1) return false;
+    var text = [q.id, q.title || q.q, q.source || "", q.cat, q.hint || ""].join(" ").toLowerCase();
+    return query.split(/\s+/).every(function(word){ return text.indexOf(word) !== -1; });
+  });
+}
+
+function renderBank(){
+  var list = matchingQuestions(document.getElementById("bankQuery").value,
+    document.getElementById("bankType").value, document.getElementById("bankStatus").value);
+  document.getElementById("bankResultCount").textContent = "找到 " + list.length + " / " + (BANK.length + CHOICE.length) + " 题，点击题目开始练习。";
+  document.getElementById("bankResults").innerHTML = list.length ? list.map(function(q){
+    var status = DB.wrong.indexOf(q.id) !== -1 ? "待复习" : (DB.done.indexOf(q.id) !== -1 ? "已做过" : "未做过");
+    return '<button class="bank-result" data-question="' + q.id + '"><strong>' + esc(q.title || q.q) +
+      '</strong><span>' + esc((isChoice(q) ? "选择题 " + q.id : q.source) + " · " + q.cat + " · " + status) + '</span></button>';
+  }).join("") : '<div class="empty">没有匹配的题目，请尝试其他关键词或放宽筛选条件。</div>';
+}
+
+function openQuestion(id){
+  var q = byId(id);
+  if(!q) return;
+  if(isChoice(q)){
+    choice.cat = "全部"; choice.list = [q];
+    choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
+    go("choice");
+  }else{
+    practice.cat = "全部"; practice.list = [q];
+    practice.idx = 0; practice.level = ""; practice.catTally = {};
+    go("practice");
+  }
+}
+
+function resumeStudyTimer(){
+  var active = (currentView === "practice" && practice.idx < practice.list.length) ||
+    (currentView === "choice" && choice.idx < choice.list.length);
+  if(active && !document.hidden && !practice.sessionStart) practice.sessionStart = Date.now();
+}
+
+function updateQuestionStatus(id, correct){
+  if(correct){
+    if(DB.solved.indexOf(id) === -1) DB.solved.push(id);
+    DB.wrong = DB.wrong.filter(function(x){ return x !== id; });
+  }else{
+    if(DB.wrong.indexOf(id) === -1) DB.wrong.push(id);
+    DB.solved = DB.solved.filter(function(x){ return x !== id; });
+    DB.mastered = DB.mastered.filter(function(x){ return x !== id; });
+  }
+}
+
 /* =========================================================
    5. 刷题模块
    ========================================================= */
@@ -2067,6 +2154,7 @@ function renderPractice(){
   var box = document.getElementById("practiceBody");
 
   if(practice.idx >= practice.list.length){
+    flushSession();
     // 一组做完，出总结
     var total = practice.idx, ok = 0, mid = 0, no = 0;
     for(var c in practice.catTally){
@@ -2082,8 +2170,7 @@ function renderPractice(){
           '<div class="kpi"><div class="k-label">自评「会做」</div><div class="k-value">' + ok + '<small>题</small></div></div>' +
         '</div>' +
         '<div class="about" style="margin-top:14px;">有思路但没做出来 ' + mid + ' 题，完全不会 ' + no + ' 题。' +
-          (no ? "「不会」的题已自动收进错题本，去复盘一下。"
-              : (mid ? "「有思路」的题也别放过，对照参考代码再推一遍。" : "整组都拿下了，继续保持！")) +
+          (no || mid ? "没做出来的题已自动收进错题本，去复盘一下。" : "整组都拿下了，继续保持！") +
         '</div>' +
       '</div>' +
       '<button class="btn" id="btnAgain">再来一组</button>' +
@@ -2097,6 +2184,7 @@ function renderPractice(){
     return;
   }
 
+  resumeStudyTimer();
   var q = practice.list[practice.idx];
   var samplesHtml = q.samples.map(function(s, i){
     return '<div class="sample">' +
@@ -2177,19 +2265,14 @@ function assess(level){
   DB.qstat[q.id].a++;
   if(level === "ok") DB.qstat[q.id].c++;
 
-  // 错题本：自评「不会」自动收录；自评「会做」则移出
-  if(level === "ok"){
-    if(DB.solved.indexOf(q.id) === -1) DB.solved.push(q.id);
-    DB.wrong = DB.wrong.filter(function(x){ return x !== q.id; });
-  }else if(level === "no"){
-    if(DB.wrong.indexOf(q.id) === -1) DB.wrong.push(q.id);
-  }
+  updateQuestionStatus(q.id, level === "ok");
 
   saveDB();
   renderPractice();
 }
 
 function nextQuestion(){
+  if(!practice.level || practice.idx >= practice.list.length) return;
   // 先结算这一段的学习时间，再进入下一题
   flushSession();
   practice.sessionStart = Date.now();
@@ -2197,6 +2280,7 @@ function nextQuestion(){
   practice.idx++;
   practice.level = "";
   renderPractice();
+  window.scrollTo(0,0);
 }
 
 /* =========================================================
@@ -2235,6 +2319,7 @@ function renderChoice(){
   var box = document.getElementById("choiceBody");
 
   if(choice.idx >= choice.list.length){
+    flushSession();
     var answered = choice.list.length;
     box.innerHTML =
       '<div class="card">' +
@@ -2257,6 +2342,7 @@ function renderChoice(){
     return;
   }
 
+  resumeStudyTimer();
   var q = choice.list[choice.idx];
   var letters = ["A", "B", "C", "D"];
   var optsHtml = q.opts.map(function(txt, i){
@@ -2323,23 +2409,22 @@ function chooseOpt(i){
   DB.qstat[q.id].a++;
   if(i === q.ans){
     DB.qstat[q.id].c++;
-    if(DB.solved.indexOf(q.id) === -1) DB.solved.push(q.id);
-    DB.wrong = DB.wrong.filter(function(x){ return String(x) !== String(q.id); });
-  }else{
-    if(DB.wrong.indexOf(q.id) === -1) DB.wrong.push(q.id);
   }
+  updateQuestionStatus(q.id, i === q.ans);
 
   saveDB();
   renderChoice();
 }
 
 function nextChoice(){
+  if(!choice.revealed || choice.idx >= choice.list.length) return;
   flushSession();
   practice.sessionStart = Date.now();
   choice.idx++;
   choice.chosen = -1;
   choice.revealed = false;
   renderChoice();
+  window.scrollTo(0,0);
 }
 
 /* =========================================================
@@ -2378,17 +2463,7 @@ function renderWrong(){
     if(rd){
       var q = byId(rd.dataset.redo);
       if(!q) return;
-      if(isChoice(q)){
-        choice.cat = "全部";
-        choice.list = [q];
-        choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
-        go("choice");
-      }else{
-        practice.cat = "全部";
-        practice.list = [q];
-        practice.idx = 0; practice.level = ""; practice.catTally = {};
-        go("practice");
-      }
+      openQuestion(q.id);
       toast("开始重做：" + q.cat);
     }
     if(ms){
@@ -2488,6 +2563,13 @@ function updateMajorTip(){
    ========================================================= */
 function init(){
   var loaded = loadDB();
+  document.getElementById("bankQuery").oninput = renderBank;
+  document.getElementById("bankType").onchange = renderBank;
+  document.getElementById("bankStatus").onchange = renderBank;
+  document.getElementById("bankResults").onclick = function(e){
+    var button = e.target.closest("[data-question]");
+    if(button) openQuestion(button.dataset.question);
+  };
 
   // 底部导航
   document.querySelectorAll(".navbar button").forEach(function(b){
@@ -2516,10 +2598,18 @@ function init(){
 
   // 设置项
   document.getElementById("examDate").onchange = function(){
-    DB.settings.examDate = this.value; saveDB(); toast("考试日期已保存");
+    var previous = DB.settings.examDate;
+    if(this.value && !validDate(this.value)){ this.value = previous; toast("请选择有效的考试日期"); return; }
+    DB.settings.examDate = this.value;
+    if(saveDB()) toast("考试日期已保存");
+    else { DB.settings.examDate = previous; this.value = previous; }
   };
   document.getElementById("majorSel").onchange = function(){
-    DB.settings.major = this.value; saveDB(); updateMajorTip(); toast("达标线已更新");
+    var previous = DB.settings.major;
+    DB.settings.major = this.value;
+    if(saveDB()) toast("达标线已更新");
+    else { DB.settings.major = previous; this.value = previous; }
+    updateMajorTip();
   };
   document.getElementById("targetScore").onchange = function(){
     if(this.value && (!this.checkValidity() || !Number.isInteger(Number(this.value)))){
@@ -2527,17 +2617,27 @@ function init(){
       this.value = DB.settings.targetScore;
       return;
     }
-    DB.settings.targetScore = this.value; saveDB(); toast("目标分已保存");
+    var previous = DB.settings.targetScore;
+    DB.settings.targetScore = this.value;
+    if(saveDB()) toast("目标分已保存");
+    else { DB.settings.targetScore = previous; this.value = previous; }
   };
 
   // 导出
   document.getElementById("btnExport").onclick = function(){
-    flushSession();
-    var data = JSON.stringify(DB, null, 2);
+    var data;
+    if(storageReadFailed){
+      try{ data = localStorage.getItem(KEY); }
+      catch(err){ toast("无法访问原记录，请检查浏览器存储权限"); return; }
+      if(data === null){ toast("浏览器中没有可导出的原记录"); return; }
+    }else{
+      flushSession();
+      data = JSON.stringify(DB, null, 2);
+    }
     var blob = new Blob([data], {type:"application/json"});
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "csp-backup-" + today() + ".json";
+    a.download = (storageReadFailed ? "csp-recovery-" : "csp-backup-") + today() + ".json";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -2564,6 +2664,8 @@ function init(){
         if(!confirm("导入将替换当前学习记录和设置，确定继续吗？")) return;
         localStorage.setItem(KEY, JSON.stringify(imported));
         DB = imported;
+        storageReadFailed = false;
+        document.getElementById("storageWarning").hidden = true;
         practice.list = []; practice.idx = 0; practice.level = ""; practice.catTally = {};
         practice.sessionStart = 0;
         choice.list = []; choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
@@ -2582,8 +2684,12 @@ function init(){
   // 清空
   document.getElementById("btnReset").onclick = function(){
     if(!confirm("确定清空全部数据吗？做题记录、错题本、设置都会被删除，且无法恢复。")) return;
-    DB = blankDB();
-    saveDB();
+    var cleared = blankDB();
+    try{ localStorage.setItem(KEY, JSON.stringify(cleared)); }
+    catch(err){ toast("清空失败，原记录已保留，请检查浏览器存储权限"); return; }
+    DB = cleared;
+    storageReadFailed = false;
+    document.getElementById("storageWarning").hidden = true;
     practice.list = []; practice.idx = 0; practice.level = ""; practice.catTally = {}; practice.sessionStart = 0;
     choice.list = []; choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
     renderMe(); renderHome();
@@ -2594,15 +2700,14 @@ function init(){
   document.addEventListener("visibilitychange", function(){
     if(document.hidden){
       flushSession();
-    }else if((currentView === "practice" || currentView === "choice") && !practice.sessionStart){
-      practice.sessionStart = Date.now();
-    }
+    }else resumeStudyTimer();
   });
   window.addEventListener("pagehide", flushSession);
+  window.addEventListener("pageshow", resumeStudyTimer);
   setInterval(function(){
     if(document.hidden || !practice.sessionStart) return;
     flushSession();
-    practice.sessionStart = Date.now();
+    resumeStudyTimer();
   }, 30000);
 
   // 首次进入记录
