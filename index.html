@@ -263,7 +263,7 @@ input,select{font-family:inherit;font-size:16px;color:inherit;}
 .field{margin-bottom:16px;}
 .field:last-child{margin-bottom:0;}
 .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:7px;}
-.field input[type=date],.field select{
+.field input[type=date],.field input[type=number],.field select{
   width:100%;padding:12px;border-radius:var(--radius-sm);
   border:1px solid var(--line);background:var(--card-2);appearance:none;
 }
@@ -297,6 +297,66 @@ input,select{font-family:inherit;font-size:16px;color:inherit;}
   max-width:80vw;text-align:center;
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* 阅读与交互适配 */
+html{color-scheme:light dark;}
+button,input,select{touch-action:manipulation;}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{
+  outline:3px solid var(--brand);outline-offset:4px;
+}
+button:disabled{cursor:default;}
+.page{max-width:960px;margin:0 auto;}
+.card,.kpi,.countdown{min-width:0;}
+.q-head{gap:12px;flex-wrap:wrap;}
+.q-text,.prob-sec p,.w-q{overflow-wrap:anywhere;}
+.appbar{padding-left:max(20px,calc((100vw - 920px)/2));}
+.appbar h1{font-size:21px;font-weight:700;}
+.countdown{position:relative;padding:24px;border-color:var(--line);}
+.countdown .cd-num{font-size:48px;margin:8px 0;}
+.countdown .cd-date{font-size:13px;}
+.countdown .cd-settings{position:absolute;right:20px;top:20px;font-size:13px;
+  color:var(--brand-text);padding:6px 12px;border:1px solid var(--brand);border-radius:999px;}
+.home-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0;}
+.home-actions .btn{margin:0;}
+.section-heading{margin:24px 0 12px;font-size:18px;}
+.study-progress{margin-top:18px;}
+.study-progress .p-top{font-size:13px;margin-bottom:8px;display:flex;justify-content:space-between;gap:12px;}
+.navbar{left:50%;transform:translateX(-50%);width:100%;max-width:960px;}
+.navbar button{min-width:0;}
+.navbar button.active{background:var(--brand-soft);}
+.about a{color:var(--brand-text);}
+.resource-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;}
+.resource-link{display:block;padding:18px;border:1px solid var(--line);border-radius:var(--radius);
+  color:var(--text);background:var(--card-2);text-decoration:none;}
+.resource-link strong{display:block;color:var(--brand-text);margin-bottom:6px;font-size:16px;}
+.resource-link span{display:block;font-size:13px;color:var(--muted);overflow-wrap:anywhere;}
+.resource-link:hover{border-color:var(--brand);}
+.resource-intro{margin:0 0 16px;color:var(--muted);font-size:14px;line-height:1.8;}
+.resource-steps{padding-left:22px;font-size:14px;line-height:1.8;margin-bottom:0;}
+.resource-steps li+li{margin-top:10px;}
+.practice-source{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+.practice-source p{margin:0;font-size:13px;color:var(--muted);}
+.practice-source button{padding:9px 14px;background:var(--brand-soft);color:var(--brand-text);border-radius:var(--radius-sm);font-size:14px;}
+@media (hover:hover){
+  .btn:hover,.chip:hover,.assess-btn:hover,.opt:not(:disabled):hover{filter:brightness(.96);}
+}
+@media (min-width:720px){
+  .page{padding:28px 20px 40px;}
+  .kpi-row{grid-template-columns:repeat(4,minmax(0,1fr));}
+  .kpi{padding:20px;}
+  .kpi .k-value{font-size:30px;}
+  .card{padding:24px;}
+  .prob-sec p{font-size:16px;}
+  .prob-title{font-size:24px;}
+  .prob-sec{margin-top:24px;}
+  .navbar{bottom:12px;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);}
+  .navbar button{font-size:12px;}
+}
+@media (max-width:380px){
+  .home-actions{grid-template-columns:1fr;}
+  .countdown .cd-settings{right:12px;top:16px;}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;}}
 </style>
 </head>
 <body>
@@ -309,11 +369,13 @@ input,select{font-family:inherit;font-size:16px;color:inherit;}
 <!-- ============ 首页 ============ -->
 <section class="page active" id="page-home">
   <div class="countdown">
+    <button class="cd-settings" onclick="go('me')">设置考试</button>
     <div class="cd-label">距离目标考试还有</div>
     <div class="cd-num"><span id="cdDays">--</span><small>天</small></div>
     <div class="cd-date" id="cdDate">未设置考试日期，去「我的」里设置</div>
   </div>
 
+  <h2 class="section-heading">今天的学习</h2>
   <div class="kpi-row">
     <div class="kpi">
       <div class="k-label">今日做题</div>
@@ -333,11 +395,25 @@ input,select{font-family:inherit;font-size:16px;color:inherit;}
     </div>
   </div>
 
+  <div class="home-actions">
+    <button class="btn" onclick="go('practice')">开始真题练习 →</button>
+    <button class="btn ghost" onclick="go('choice')">练习基础选择题</button>
+  </div>
+  <div class="card">
+    <h2 class="card-title">官方题库与在线评测</h2>
+    <p class="resource-intro">前往 CCF CSP 官方模拟系统，登录后查看可用试卷并提交代码。</p>
+    <button class="btn ghost" onclick="go('official')" style="margin-top:0">打开官方资源入口 →</button>
+  </div>
+  <div class="card">
+    <h2 class="card-title">题库进度 <span class="hint" id="bankSize"></span></h2>
+    <div id="bankProgress"></div>
+  </div>
+
   <div class="card" style="margin-top:12px;">
     <h2 class="card-title">我的达标线 <span class="hint" id="goalHint"></span></h2>
     <div id="goalList"></div>
     <div class="tip" style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6;">
-      达标线 ＝ 当次考试平均分 ＋ 对应分数。达标制：满足拿 100 分，不满足记 0 分。
+      以下为原站配置的专业达标参考，具体认定以所在学校或项目要求为准。
     </div>
   </div>
 
@@ -346,14 +422,63 @@ input,select{font-family:inherit;font-size:16px;color:inherit;}
     <div id="weakList"></div>
   </div>
 
-  <button class="btn" onclick="go('practice')">开始做题</button>
-  <button class="btn ghost" onclick="go('choice')">做基础选择题</button>
 </section>
 
 <!-- ============ 刷题 ============ -->
 <section class="page" id="page-practice">
+  <div class="practice-source">
+    <p>本站精选题库 · 22 道编程题 · 自评练习</p>
+    <button onclick="go('official')">更多真题 · 官方在线评测 ↗</button>
+  </div>
   <div class="chips" id="catChips"></div>
   <div id="practiceBody"></div>
+</section>
+
+<!-- ============ 官方资源 ============ -->
+<section class="page" id="page-official">
+  <div class="card">
+    <h2 class="card-title">官方题库与账号</h2>
+    <p class="resource-intro">以下入口来自 CSP 官网。点击后在新标签页打开官方系统，账号登录和代码评测在官方页面完成。</p>
+    <div class="resource-links">
+      <a class="resource-link" href="https://sim.csp.thusaac.com/" target="_blank" rel="noopener noreferrer">
+        <strong>进入官方模拟题库 ↗</strong>
+        <span>查看可用历次真题试卷、编写代码并在线评测</span>
+        <span>sim.csp.thusaac.com</span>
+      </a>
+      <a class="resource-link" href="https://csp.ccf.org.cn/csp/index.action?_access_code=1" target="_blank" rel="noopener noreferrer">
+        <strong>登录 CSP 报名系统 ↗</strong>
+        <span>通过 CCF 统一登录进入报名系统及个人中心</span>
+        <span>csp.ccf.org.cn → passport.ccf.org.cn</span>
+      </a>
+      <a class="resource-link" href="https://web.ccf.org.cn/CCF/apply/user!reg.action?source=RszKXJ&amp;url=https://cspro.org/" target="_blank" rel="noopener noreferrer">
+        <strong>注册 CCF 账号 ↗</strong>
+        <span>使用官网公布的注册入口创建账号</span>
+        <span>web.ccf.org.cn</span>
+      </a>
+    </div>
+  </div>
+  <div class="card">
+    <h2 class="card-title">怎么练官方真题</h2>
+    <ol class="resource-steps">
+      <li>打开「官方模拟题库」，使用模拟系统页面提供的登录或注册功能进入。报名系统使用 CCF 统一登录，模拟系统的账号要求请查看该系统提示。</li>
+      <li>按官方当前开放安排选择试卷。根据官方使用答疑，报名成功的考生可在报名系统个人中心获取兑换码，用于兑换往期真题模拟试卷。可用试卷与开放时间以官网为准。</li>
+      <li>进入试卷查看题目，选择语言并提交代码，评测结果在官方系统内查看。</li>
+    </ol>
+    <p class="resource-intro" style="margin:16px 0 0">官方练习记录保存在官方系统。本站首页和错题本统计本站内的练习记录。</p>
+  </div>
+  <div class="card">
+    <h2 class="card-title">使用帮助</h2>
+    <div class="resource-links">
+      <a class="resource-link" href="https://www.cspro.org/" target="_blank" rel="noopener noreferrer">
+        <strong>CSP 官网 ↗</strong><span>最新认证通知、模拟考试及官方入口</span>
+      </a>
+      <a class="resource-link" href="https://www.cspro.org/cms/show.action?code=publish_8ac21fad692439c7016932b9e83e010d&amp;siteid=100000" target="_blank" rel="noopener noreferrer">
+        <strong>官方系统使用答疑 ↗</strong><span>账号登录、真题练习及模拟系统说明</span>
+      </a>
+    </div>
+    <p class="resource-intro" style="margin:16px 0 0">入口核验于 2026 年 11 月 16 日。遇到维护或开放时间调整，可从 CSP 官网查看最新通知。</p>
+  </div>
+  <button class="btn ghost" onclick="go('practice')">返回本站真题练习</button>
 </section>
 
 <!-- ============ 基础选择题 ============ -->
@@ -394,6 +519,11 @@ input,select{font-family:inherit;font-size:16px;color:inherit;}
 <!-- ============ 我的 ============ -->
 <section class="page" id="page-me">
   <div class="card">
+    <h2 class="card-title">CSP 官方账号</h2>
+    <div class="about">前往官方页面登录、注册或进入模拟题库。</div>
+    <button class="btn ghost" onclick="go('official')">官方题库与账号入口 ↗</button>
+  </div>
+  <div class="card">
     <h2 class="card-title">考试设置</h2>
     <div class="field">
       <label for="examDate">下次考试日期</label>
@@ -428,13 +558,13 @@ input,select{font-family:inherit;font-size:16px;color:inherit;}
   <div class="card">
     <h2 class="card-title">怎么用这个 App</h2>
     <div class="about">
-      <b>题库来源：</b>历年 CCF CSP 官方真题（题面、样例均来自官网真题）。<br>
+      <b>题库来源：</b>本站收录 22 道 CSP 编程真题，基础选择题为本站自编。更多真题可通过「官方题库与账号入口」前往官方模拟系统练习。<br>
       <b>怎么做题：</b>先读题，自己在草稿纸上想清楚思路并动手写代码；<br>
       然后诚实地自评三档——<b>会做</b> / <b>有思路但没做出来</b> / <b>完全不会</b>；<br>
       再点开「思路 + 参考代码（C++）」对照，看看差在哪里。<br>
       <b>记什么：</b>「会做」计入掌握率；「完全不会」自动进错题本，方便二刷。<br>
       <b>基础选择题：</b>底部「选择」页里是 C++ 语法、计算机基础、CSP 常识的单选题，点选项后会立刻自动判分并给解析；答错的题同样进错题本。<br>
-      <b>提示：</b>手机没法编译运行代码，真正交题请在电脑上用 CCF 官方系统。
+      <b>在线评测：</b>通过官方模拟考试系统提交代码并查看得分。
     </div>
   </div>
 
@@ -445,12 +575,12 @@ input,select{font-family:inherit;font-size:16px;color:inherit;}
       <b>内容：</b>用 C/C++/Java/Python 解题，考点包括模拟、枚举、贪心、二分、动态规划、图论、字符串等。<br>
       <b>难度：</b>远高于计算机二级，接近程序设计竞赛入门水平。<br>
       <b>机会：</b>成绩三年内有效，取最高分，可以多次参加。<br>
-      <b>官网：</b>csp.ccf.org.cn（有历年真题和模拟考试系统）。
+      <b>官网：</b><a href="https://www.cspro.org/" target="_blank" rel="noopener noreferrer">CCF CSP 认证官网</a>。
     </div>
   </div>
 </section>
 
-<nav class="navbar">
+<nav class="navbar" aria-label="主导航">
   <button data-view="home" class="active"><span class="n-ico">🏠</span>总览</button>
   <button data-view="practice"><span class="n-ico">✍️</span>真题</button>
   <button data-view="choice"><span class="n-ico">✅</span>选择</button>
@@ -459,7 +589,7 @@ input,select{font-family:inherit;font-size:16px;color:inherit;}
   <button data-view="me"><span class="n-ico">⚙️</span>我的</button>
 </nav>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* =========================================================
@@ -1113,23 +1243,78 @@ function blankDB(){
 
 var DB = blankDB();
 
+function validDate(value){
+  if(typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  var date = new Date(value + "T12:00:00");
+  return !isNaN(date) && dkey(date) === value;
+}
+
+/* 旧备份可缺少新增字段，已有字段必须符合数据结构。 */
+function normalizeDB(obj){
+  function object(value){ return value && typeof value === "object" && !Array.isArray(value); }
+  function count(value){
+    if(!Number.isSafeInteger(value) || value < 0) throw new Error("记录中的数值无效");
+    return value;
+  }
+  if(!object(obj) || !object(obj.settings) || !object(obj.daily)) throw new Error("备份结构无效");
+  var result = blankDB();
+  var settings = obj.settings;
+  if(settings.examDate && !validDate(settings.examDate)) throw new Error("考试日期无效");
+  result.settings.examDate = settings.examDate || "";
+  if(Object.prototype.hasOwnProperty.call(MAJORS, settings.major)) result.settings.major = settings.major;
+  var score = Number(settings.targetScore);
+  if(settings.targetScore && (!Number.isInteger(score) || score < 100 || score > 500)) throw new Error("目标分无效");
+  result.settings.targetScore = settings.targetScore ? String(score) : "";
+  Object.keys(obj.daily).forEach(function(key){
+    if(!validDate(key) || !object(obj.daily[key])) throw new Error("每日记录无效");
+    var row = obj.daily[key];
+    var answered = count(row.answered), correct = count(row.correct);
+    if(correct > answered) throw new Error("答题统计无效");
+    if(!Number.isFinite(row.seconds) || row.seconds < 0 || row.seconds > Number.MAX_SAFE_INTEGER) throw new Error("学习时长无效");
+    result.daily[key] = {answered:answered, correct:correct, seconds:row.seconds};
+  });
+  ["wrong", "mastered", "done", "solved"].forEach(function(key){
+    if(obj[key] === undefined) return;
+    if(!Array.isArray(obj[key])) throw new Error("题目记录无效");
+    obj[key].forEach(function(id){
+      if(typeof id !== "string" && typeof id !== "number") throw new Error("题号无效");
+      var q = byId(id);
+      if(q && result[key].indexOf(q.id) === -1) result[key].push(q.id);
+    });
+  });
+  if(obj.qstat !== undefined){
+    if(!object(obj.qstat)) throw new Error("逐题统计无效");
+    Object.keys(obj.qstat).forEach(function(id){
+      var q = byId(id);
+      if(!q) return;
+      var row = obj.qstat[id];
+      if(!object(row)) throw new Error("逐题统计无效");
+      var attempts = count(row.a), correct = count(row.c);
+      if(correct > attempts) throw new Error("逐题统计无效");
+      result.qstat[q.id] = {a:attempts, c:correct};
+    });
+  }
+  result.lastVisit = validDate(obj.lastVisit) ? obj.lastVisit : "";
+  return result;
+}
+
 function loadDB(){
   try{
     var raw = localStorage.getItem(KEY);
     if(raw){
-      var obj = JSON.parse(raw);
-      DB = Object.assign(blankDB(), obj);
-      DB.settings = Object.assign(blankDB().settings, obj.settings || {});
-      DB.solved = DB.solved || [];
+      DB = normalizeDB(JSON.parse(raw));
     }
+    return true;
   }catch(e){
     DB = blankDB();
+    toast("本地记录读取失败，请导入有效备份");
+    return false;
   }
 }
 
 function saveDB(){
-  try{ localStorage.setItem(KEY, JSON.stringify(DB)); }
-  catch(e){ toast("保存失败，浏览器可能禁用了本地存储"); }
+  try{ localStorage.setItem(KEY, JSON.stringify(DB)); return true; }
+  catch(e){ toast("保存失败，浏览器可能禁用了本地存储"); return false; }
 }
 
 /* ---------- 日期工具 ---------- */
@@ -1167,9 +1352,15 @@ function totalSeconds(){ var s = 0; for(var k in DB.daily) s += DB.daily[k].seco
 /* 学习时长结算：把当前这一段的学习时间计入今天 */
 function flushSession(){
   if(!practice.sessionStart) return;
-  var rec = dayRecord(today());
-  var sec = Math.round((Date.now() - practice.sessionStart) / 1000);
-  if(sec > 0 && sec <= 900) rec.seconds += sec;
+  var start = practice.sessionStart;
+  var end = Date.now();
+  while(start < end){
+    var date = new Date(start);
+    var midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime();
+    var stop = Math.min(end, midnight);
+    dayRecord(dkey(date)).seconds += (stop - start) / 1000;
+    start = stop;
+  }
   practice.sessionStart = 0;
   saveDB();
 }
@@ -1180,6 +1371,7 @@ function flushSession(){
 var TITLES = {
   home:["备考总览","CCF CSP 计算机软件能力认证"],
   practice:["真题练习","看真题题面，自评掌握情况"],
+  official:["官方题库与账号","CCF CSP 官方模拟考试及登录入口"],
   choice:["基础选择题","自动判分，巩固基本功"],
   wrong:["错题本","反复练，直到不再错"],
   stats:["学习统计","用数据看进步"],
@@ -1189,13 +1381,17 @@ var TITLES = {
 var currentView = "home";
 
 function go(v){
+  if(!Object.prototype.hasOwnProperty.call(TITLES, v)) return;
   // 离开做题页时先把这一段学习时间结算掉（真题页和选择题页共用一个计时器）
-  if((currentView === "practice" || currentView === "choice") && v !== currentView) flushSession();
+  if(currentView === "practice" || currentView === "choice") flushSession();
 
   document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
   document.getElementById("page-" + v).classList.add("active");
   document.querySelectorAll(".navbar button").forEach(function(b){
-    b.classList.toggle("active", b.dataset.view === v);
+    var active = b.dataset.view === v || (v === "official" && b.dataset.view === "practice");
+    b.classList.toggle("active", active);
+    if(active) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
   });
   document.getElementById("barTitle").textContent = TITLES[v][0];
   document.getElementById("barSub").textContent = TITLES[v][1];
@@ -1223,6 +1419,16 @@ function toast(msg){
    4. 首页渲染
    ========================================================= */
 function renderHome(){
+  document.getElementById("bankSize").textContent = (BANK.length + CHOICE.length) + " 题";
+  document.getElementById("bankProgress").innerHTML = [
+    {label:"编程真题", bank:BANK}, {label:"基础选择题", bank:CHOICE}
+  ].map(function(group){
+    var done = group.bank.filter(function(q){ return DB.done.indexOf(q.id) !== -1; }).length;
+    var percent = Math.round(done / group.bank.length * 100);
+    return '<div class="study-progress"><div class="p-top"><span>' + group.label +
+      '</span><span>' + done + ' / ' + group.bank.length + ' 题</span></div>' +
+      '<div class="progress-track"><div class="progress-fill" style="width:' + percent + '%"></div></div></div>';
+  }).join("");
   // 倒计时
   var dd = document.getElementById("cdDays");
   var ddt = document.getElementById("cdDate");
@@ -1429,17 +1635,15 @@ function solutionHtml(q){
 }
 
 function assess(level){
+  if(practice.level || ["ok", "mid", "no"].indexOf(level) === -1) return;
   var q = practice.list[practice.idx];
+  if(!q) return;
   practice.level = level;
 
-  // 学习时长结算（单段上限 15 分钟，避免挂机时间被计入）
+  flushSession();
   var rec = dayRecord(today());
   rec.answered++;
   if(level === "ok") rec.correct++;
-  if(practice.sessionStart){
-    var sec = Math.round((Date.now() - practice.sessionStart) / 1000);
-    if(sec > 0 && sec <= 900) rec.seconds += sec;
-  }
   practice.sessionStart = Date.now();
 
   // 会话内按类别统计
@@ -1542,7 +1746,7 @@ function renderChoice(){
       if(i === q.ans) cls += " correct";
       else if(i === choice.chosen) cls += " wrong";
     }
-    return '<button class="' + cls + '" data-opt="' + i + '">' +
+    return '<button class="' + cls + '" data-opt="' + i + '"' + (choice.revealed ? ' disabled' : '') + '>' +
              '<span class="idx">' + letters[i] + '</span><span>' + esc(txt) + '</span>' +
            '</button>';
   }).join("");
@@ -1583,18 +1787,15 @@ function choiceAnswerHtml(q){
 function chooseOpt(i){
   if(choice.revealed) return;
   var q = choice.list[choice.idx];
+  if(!q || !Number.isInteger(i) || i < 0 || i >= q.opts.length) return;
   choice.chosen = i;
   choice.revealed = true;
   if(i === q.ans) choice.right++;
 
-  // 学习时长结算（单段上限 15 分钟，防挂机）
+  flushSession();
   var rec = dayRecord(today());
   rec.answered++;
   if(i === q.ans) rec.correct++;
-  if(practice.sessionStart){
-    var sec = Math.round((Date.now() - practice.sessionStart) / 1000);
-    if(sec > 0 && sec <= 900) rec.seconds += sec;
-  }
   practice.sessionStart = Date.now();
 
   // 记录做过 / 逐题掌握统计
@@ -1767,7 +1968,7 @@ function updateMajorTip(){
    9. 初始化与事件绑定
    ========================================================= */
 function init(){
-  loadDB();
+  var loaded = loadDB();
 
   // 底部导航
   document.querySelectorAll(".navbar button").forEach(function(b){
@@ -1802,11 +2003,17 @@ function init(){
     DB.settings.major = this.value; saveDB(); updateMajorTip(); toast("达标线已更新");
   };
   document.getElementById("targetScore").onchange = function(){
+    if(this.value && (!this.checkValidity() || !Number.isInteger(Number(this.value)))){
+      toast("请输入 100～500 之间、以 10 分递增的目标分");
+      this.value = DB.settings.targetScore;
+      return;
+    }
     DB.settings.targetScore = this.value; saveDB(); toast("目标分已保存");
   };
 
   // 导出
   document.getElementById("btnExport").onclick = function(){
+    flushSession();
     var data = JSON.stringify(DB, null, 2);
     var blob = new Blob([data], {type:"application/json"});
     var a = document.createElement("a");
@@ -1826,21 +2033,30 @@ function init(){
   document.getElementById("fileInput").onchange = function(e){
     var f = e.target.files[0];
     if(!f) return;
+    if(f.size > 5 * 1024 * 1024){
+      toast("备份文件过大，请选择 5 MB 以内的 JSON 文件");
+      e.target.value = "";
+      return;
+    }
     var rd = new FileReader();
     rd.onload = function(){
       try{
-        var obj = JSON.parse(rd.result);
-        if(!obj || typeof obj !== "object") throw new Error("bad");
-        DB = Object.assign(blankDB(), obj);
-        DB.settings = Object.assign(blankDB().settings, obj.settings || {});
-        saveDB();
+        var imported = normalizeDB(JSON.parse(rd.result));
+        if(!confirm("导入将替换当前学习记录和设置，确定继续吗？")) return;
+        localStorage.setItem(KEY, JSON.stringify(imported));
+        DB = imported;
+        practice.list = []; practice.idx = 0; practice.level = ""; practice.catTally = {};
+        practice.sessionStart = 0;
+        choice.list = []; choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
         renderMe(); renderHome();
         toast("导入成功");
       }catch(err){
-        toast("文件格式不对，导入失败");
+        toast("导入失败，请检查备份格式和浏览器存储权限");
+      }finally{
+        e.target.value = "";
       }
-      e.target.value = "";
     };
+    rd.onerror = function(){ toast("文件读取失败，请重新选择"); e.target.value = ""; };
     rd.readAsText(f);
   };
 
@@ -1849,7 +2065,7 @@ function init(){
     if(!confirm("确定清空全部数据吗？做题记录、错题本、设置都会被删除，且无法恢复。")) return;
     DB = blankDB();
     saveDB();
-    practice.list = []; practice.idx = 0;
+    practice.list = []; practice.idx = 0; practice.level = ""; practice.catTally = {}; practice.sessionStart = 0;
     choice.list = []; choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
     renderMe(); renderHome();
     toast("已清空");
@@ -1863,12 +2079,19 @@ function init(){
       practice.sessionStart = Date.now();
     }
   });
+  window.addEventListener("pagehide", flushSession);
+  setInterval(function(){
+    if(document.hidden || !practice.sessionStart) return;
+    flushSession();
+    practice.sessionStart = Date.now();
+  }, 30000);
 
   // 首次进入记录
   DB.lastVisit = today();
-  saveDB();
+  if(loaded) saveDB();
 
   renderHome();
+  document.querySelector('.navbar [data-view="home"]').setAttribute("aria-current", "page");
 }
 
 document.addEventListener("DOMContentLoaded", init);
