@@ -1,0 +1,41 @@
+<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net; worker-src blob:; connect-src https://cdn.jsdelivr.net"><script>
+function workerMain(){
+  self.onmessage=async ({data})=>{
+    try{
+      const base="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/";
+      importScripts(base+"pyodide.js");
+      const py=await loadPyodide({indexURL:base});
+      self.postMessage({ready:true});
+      py.globals.set("program",data.code);
+      for(const [i,input] of data.inputs.entries()){
+        py.globals.set("sample",input+"\n");
+        const output=py.runPython(`import sys, io, contextlib
+class Output(io.BytesIO):
+    def write(self, value):
+        if self.tell()+len(value)>65536:
+            raise ValueError("样例输出超过 64 KiB")
+        return super().write(value)
+buffer=Output()
+out=io.TextIOWrapper(buffer,encoding="utf-8",write_through=True)
+sys.stdin=io.TextIOWrapper(io.BytesIO(sample.encode()),encoding="utf-8")
+with contextlib.redirect_stdout(out):
+    try:
+        exec(compile(program,"solution.py","exec"),{"__name__":"__main__"})
+    except SystemExit as stop:
+        if stop.code not in (0,None): raise
+buffer.getvalue().decode()`);
+        self.postMessage({i,output});
+      }
+      self.postMessage({done:true});
+    }catch(error){self.postMessage({error:String(error.message||error).slice(-1000)});}
+  };
+}
+addEventListener("message",function(e){
+  if(e.source!==parent || !e.ports[0])return;
+  const port=e.ports[0];
+  const url=URL.createObjectURL(new Blob(["("+workerMain.toString()+")()"],{type:"text/javascript"}));
+  const worker=new Worker(url);worker.onmessage=ev=>port.postMessage(ev.data);
+  worker.onerror=ev=>port.postMessage({error:ev.message||"运行时加载失败"});
+  port.onmessage=()=>worker.terminate();worker.postMessage(e.data);
+},{once:true});
+</script>
