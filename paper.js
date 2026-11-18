@@ -22,7 +22,21 @@ function renderPaper(){
   root.innerHTML='<h2 class="card-title">整套模拟 · 2024 年 3 月 CSP</h2><p class="about">本站收录 '+counts.map((n,i)=>'T'+(i+1)+' '+n+' 题').join(' / ')+'。下面是同一场的 5 道公开题面，提交代码需登录曙梦 OJ，使用该站评测数据。</p>'+
   paperNames.map((name,i)=>'<div class="goal-line"><a target="_blank" rel="noopener noreferrer" href="https://oj.shumeng.tech/p/CSP202403'+'ABCDE'[i]+'">T'+(i+1)+' '+name+' ↗</a>'+(state?'<label>OJ 得分 <input aria-label="第 '+(i+1)+' 题实得分" style="width:4em" type="number" min="0" max="100" data-score="'+i+'" value="'+(state.scores[i]??'')+'"></label>':'')+'</div>').join('')+
   '<p class="about" id="paperClock"></p><p id="paperTotal"></p><button class="btn ghost" id="paperAction">'+(!state?'开始 4 小时模拟':ended?'重新模拟':'提前交卷')+'</button>';
-  function total(){if(state)document.getElementById("paperTotal").textContent="本人登记 "+state.scores.filter(x=>x!==null).length+" / 5 题，共 "+state.scores.reduce((a,b)=>a+(b||0),0)+" 分";}
+  function total(){
+    const scores=state?.scores.filter(x=>x!==null) || [];
+    const sum=scores.reduce((a,b)=>a+b,0);
+    const goal=Number(DB.settings.targetScore);
+    const target=document.getElementById("scoreProgress");
+    target.replaceChildren();
+    if(goal){
+      target.textContent=scores.length ? "本套模拟已登记 "+scores.length+"/5 题，共 "+sum+" 分，目标 "+goal+" 分。" : "目标 "+goal+" 分。开始整套模拟并登记 OJ 得分后，可查看目标进度。";
+      if(scores.length){
+        const bar=document.createElement("progress");
+        bar.max=goal;bar.value=Math.min(goal,sum);bar.setAttribute("aria-label","本套模拟所得分数与目标分的进度");
+        target.appendChild(bar);
+      }
+    }
+    if(state)document.getElementById("paperTotal").textContent="本人登记 "+state.scores.filter(x=>x!==null).length+" / 5 题，共 "+state.scores.reduce((a,b)=>a+(b||0),0)+" 分";}
   total();tickPaper();
   root.querySelectorAll("[data-score]").forEach(el=>{el.onchange=()=>{
     if(!canEdit()||!el.checkValidity()){renderPaper();return;}

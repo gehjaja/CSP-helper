@@ -51,3 +51,20 @@ if(compiler){
     fs.rmSync(temp,{recursive:true,force:true});
   }
 }
+
+if(process.env.PYTHON){
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../python-refs.js'),'utf8'),context);
+  const refs=vm.runInContext('pythonRefs',context);
+  const runner=fs.readFileSync(path.join(__dirname,'../runner.js'),'utf8');
+  vm.runInContext(runner,context);
+  let count=0;
+  for(const q of context.BANK){
+    for(const sample of q.samples){
+      const run=spawnSync(process.env.PYTHON,['-c',refs[q.id]],{input:sample.in+'\n',encoding:'utf8',timeout:5000});
+      assert.equal(run.status,0,'Python '+q.id+' '+run.stderr);
+      assert.ok(context.matchesSample(q,run.stdout,sample.out),'Python output '+q.id+' '+run.stdout);
+      count++;
+    }
+  }
+  console.log('All Python references passed '+count+' samples.');
+}

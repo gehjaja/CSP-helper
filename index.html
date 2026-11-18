@@ -343,6 +343,9 @@ button:disabled{cursor:default;}
 .bank-result{display:block;text-align:left;width:100%;margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--card);}
 .bank-result strong{display:block;font-size:15px;overflow-wrap:anywhere;}
 .bank-result span{display:block;font-size:12px;color:var(--muted);margin-top:6px;}
+.code-block.wrap{white-space:pre-wrap;overflow-wrap:anywhere;}
+@media(max-width:600px){.code-block{white-space:pre-wrap;overflow-wrap:anywhere;}.code-block.nowrap{white-space:pre;}}
+.profile-bar[hidden]{display:none}
 .profile-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;font-size:13px;}
 .profile-bar button,.favorite-btn{padding:8px 12px;border:1px solid var(--line);border-radius:8px;color:var(--brand-text);background:var(--card-2);}
 .profile-bar span{overflow-wrap:anywhere;}
@@ -379,6 +382,9 @@ button:disabled{cursor:default;}
 }
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;}}
 </style>
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#145644">
 </head>
 <body>
 
@@ -396,6 +402,7 @@ button:disabled{cursor:default;}
 
 <!-- ============ 首页 ============ -->
 <section class="page active" id="page-home">
+  <div class="card" id="firstLesson" hidden><h2 class="card-title">从第一道题开始</h2><p>先读题、写草稿，再运行样例。自评后可以看参考解法。</p><button class="btn" onclick="startPractice()">开始第一组练习</button></div>
   <aside style="margin-bottom:12px" class="card backup-banner" aria-label="档案备份">
     <strong>学习记录只保存在当前浏览器</strong>
     <p class="about" id="backupStatus"></p>
@@ -434,7 +441,7 @@ button:disabled{cursor:default;}
     <button id="startDaily" class="btn" onclick="startReview('daily')">开始今日练习</button>
   </div>
   <div class="home-actions">
-    <button class="btn" onclick="go('practice')">开始真题练习 →</button>
+    <button id="startPractice" class="btn" onclick="startPractice()">开始真题练习 →</button>
     <button class="btn ghost" onclick="go('choice')">练习基础选择题</button>
   </div>
   <div class="card">
@@ -451,6 +458,7 @@ button:disabled{cursor:default;}
 
   <div class="card" style="margin-top:12px;">
     <h2 class="card-title">个人目标参考 <span class="hint" id="goalHint"></span></h2>
+    <div id="scoreProgress"></div>
     <div id="goalList"></div>
     <div class="tip" style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6;">
       目标分由自己设定，练习数量不能折算为考试成绩。以下为原站配置的专业达标参考，具体认定以所在学校或项目要求为准。
@@ -597,6 +605,10 @@ button:disabled{cursor:default;}
 
 <!-- ============ 我的 ============ -->
 <section class="page" id="page-me">
+  <div class="card"><h2 class="card-title">添加到手机主屏</h2>
+    <p class="about">Android 可在浏览器菜单选择「安装应用」或「添加到主屏幕」，iPhone 可在 Safari 分享菜单选择「添加到主屏幕」。</p>
+    <p id="offlineState" role="status">离线题库需先通过 HTTPS 或 localhost 打开。运行 Python 样例与外部 OJ 需要联网。</p>
+  </div>
   <div class="card">
     <h2 class="card-title">本地学习档案</h2>
     <p class="about">每个档案独立保存答题、错题、收藏和学习进度。同一浏览器内可切换使用，换设备请导出、导入备份。档案不设密码，共用设备的人可以切换查看。</p>
@@ -683,6 +695,7 @@ button:disabled{cursor:default;}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="python-refs.js"></script>
 <script src="paper.js"></script>
 <script src="review.js"></script>
 <script src="runner.js"></script>
@@ -2087,6 +2100,7 @@ function normalizeDB(obj){
   result.paper = readPaper(obj.paper);
   result.reviewQueue = readReviewQueue(obj.reviewQueue);
   result.dailyPlan = readDailyPlan(obj.dailyPlan);
+  result.normalPractice = normalizeProgress({practice:obj.normalPractice}).practice;
   result.progress = normalizeProgress(obj.progress);
   return result;
 }
@@ -2113,8 +2127,8 @@ function normalizeProgress(value){
       if([row.ok,row.mid,row.no].some(function(n){ return !Number.isSafeInteger(n) || n < 0; })) return null;
       tally[c] = {ok:row.ok,mid:row.mid,no:row.no}; sum += row.ok + row.mid + row.no;
     }
-    if(sum !== g.idx + (g.level ? 1 : 0)) return null;
-    return {ids:ids,cat:cat,idx:g.idx,level:g.level,catTally:tally};
+    if(sum > g.idx + (g.level ? 1 : 0)) return null;
+    return {ids:ids,cat:cat,idx:g.idx,level:g.level,eventId:typeof g.eventId==="string"?g.eventId:"",catTally:tally};
   }
   return {view:Object.prototype.hasOwnProperty.call(TITLES, value.view) ? value.view : "home",
     practice:group(value.practice, false), choice:group(value.choice, true)};
@@ -2122,12 +2136,13 @@ function normalizeProgress(value){
 
 function captureProgress(){
   return {view:currentView,
-    practice:{cat:practice.cat,ids:practice.list.map(function(q){return q.id;}),idx:practice.idx,level:practice.level,catTally:practice.catTally},
+    practice:{cat:practice.cat,ids:practice.list.map(function(q){return q.id;}),idx:practice.idx,level:practice.level,eventId:practice.eventId,catTally:practice.catTally},
     choice:{cat:choice.cat,ids:choice.list.map(function(q){return q.id;}),idx:choice.idx,chosen:choice.chosen,revealed:choice.revealed,right:choice.right}};
 }
 
 function restoreProgress(){
   var p = DB.progress || {};
+  practice.eventId = p.practice?.eventId || "";
   practice.cat = p.practice ? p.practice.cat : "全部";
   practice.list = p.practice ? p.practice.ids.map(byId) : [];
   practice.idx = p.practice ? p.practice.idx : 0;
@@ -2289,6 +2304,7 @@ function renderProfiles(){
   select.replaceChildren();
   listProfiles().forEach(function(user){ var option = document.createElement("option"); option.value = user.id; option.textContent = user.name + " · " + user.id.slice(0,8); select.appendChild(option); });
   select.value = activeProfile.id;
+  document.querySelector(".profile-bar").hidden=select.options.length===1 && profileWritable;
   document.getElementById("renameInput").value = activeProfile.name;
   document.getElementById("renameProfile").disabled = !profileWritable || storageReadFailed;
   document.getElementById("deleteProfile").disabled = !profileWritable;
@@ -2437,6 +2453,7 @@ function toast(msg){
    ========================================================= */
 function renderHome(){
   renderPaper();
+  document.getElementById("firstLesson").hidden=DB.done.length>0;
   renderDailyReview();
   renderBackupStatus();
   document.getElementById("programBankCount").textContent = BANK.length;
@@ -2474,7 +2491,8 @@ function renderHome(){
   var t = DB.daily[today()] || {answered:0, correct:0, seconds:0};
   document.getElementById("kToday").textContent = t.answered;
   document.getElementById("kAcc").textContent = BANK.filter(function(q){return DB.work[q.id] && DB.work[q.id].verdict === "accepted";}).length;
-  document.getElementById("kMin").textContent = Math.floor(t.seconds / 60);
+  document.getElementById("kMin").textContent = t.seconds>0 && t.seconds<60 ? Math.max(1,Math.floor(t.seconds)) : Math.floor(t.seconds/60);
+  document.getElementById("kMin").nextElementSibling.textContent=t.seconds>0 && t.seconds<60?"秒":"分钟";
   document.getElementById("kStreak").textContent = streak();
 
   // 达标线
@@ -2560,6 +2578,7 @@ function openQuestion(id, keepReviewQueue){
     choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
     go("choice");
   }else{
+    if(practice.list.length>1 || practice.cat!=="全部") DB.normalPractice=captureProgress().practice;
     practice.cat = "全部"; practice.list = [q];
     practice.idx = 0; practice.level = ""; practice.catTally = {};
     go("practice");
@@ -2717,6 +2736,21 @@ function buildList(cat){
   return pool;
 }
 
+function startPractice(){
+  DB.reviewQueue=null;
+  if(practice.list.length===1 && practice.cat==="全部"){
+    const group=DB.normalPractice;
+    practice.list=group ? group.ids.map(byId) : [];
+    practice.cat=group?.cat || "全部";
+    practice.idx=group?.idx || 0;
+    practice.level=group?.level || "";
+    practice.eventId=group?.eventId || "";
+    practice.catTally=group?.catTally || {};
+    DB.normalPractice=null;
+  }
+  if(practice.idx>=practice.list.length){practice.list=[];practice.idx=0;practice.level="";}
+  go("practice");
+}
 function practiceNew(){
   DB.reviewQueue = null;
   practice.cat = "全部";
@@ -2748,7 +2782,7 @@ function renderPractice(){
   if(practice.idx >= practice.list.length){
     flushSession();
     // 一组做完，出总结
-    var total = practice.idx, ok = 0, mid = 0, no = 0;
+    var ok = 0, mid = 0, no = 0;
     for(var c in practice.catTally){
       ok += practice.catTally[c].ok;
       mid += practice.catTally[c].mid;
@@ -2758,18 +2792,18 @@ function renderPractice(){
       '<div class="card">' +
         '<h2 class="card-title">本组完成</h2>' +
         '<div class="kpi-row">' +
-          '<div class="kpi"><div class="k-label">本组练习</div><div class="k-value">' + total + '<small>题</small></div></div>' +
+          '<div class="kpi"><div class="k-label">本组练习</div><div class="k-value">' + (ok+mid+no) + '<small>题</small></div></div>' +
           '<div class="kpi"><div class="k-label">自评「会做」</div><div class="k-value">' + ok + '<small>题</small></div></div>' +
         '</div>' +
         '<div class="about" style="margin-top:14px;">有思路但没做出来 ' + mid + ' 题，完全不会 ' + no + ' 题。' +
-          (no || mid ? "没做出来的题已自动收进错题本，去复盘一下。" : "整组都拿下了，继续保持！") +
+          "跳过 " + (practice.idx-ok-mid-no) + " 题。" +
         '</div>' +
       '</div>' +
-      '<button class="btn" id="btnAgain">再来一组</button>' +
+      '<button class="btn" id="btnAgain">再练本组</button>' +
       '<button class="btn ghost" onclick="go(\'wrong\')">看错题本</button>';
     var ba = document.getElementById("btnAgain");
     if(ba) ba.onclick = function(){
-      practice.list = buildList(practice.cat);
+      // 保留本组题目，包括从错题本打开的单题。
       practice.idx = 0; practice.level = ""; practice.catTally = {};
       renderPractice();
     };
@@ -2805,6 +2839,7 @@ function renderPractice(){
     '</div>' +
     (practice.level ? solutionHtml(q) :
       '<div class="card">' +
+        '<button class="favorite-btn" id="skipPractice">跳过本题</button>' +
         '<div class="assess-tip">先自己想一下这题怎么做，再诚实地选一个：</div>' +
         '<div class="assess">' +
           '<button class="assess-btn ok" data-lv="ok">✅ 我会做</button>' +
@@ -2820,12 +2855,37 @@ function renderPractice(){
     var b = e.target.closest(".assess-btn");
     if(b) assess(b.dataset.lv);
   };
+  const skip=box.querySelector("#skipPractice");
+  if(skip) skip.onclick=nextQuestion;
   var nb = document.getElementById("btnNext");
   if(nb) nb.onclick = nextQuestion;
   renderReviewStep(box, q, nb);
   saveDB();
 }
 
+function correctAssessment(level){
+  if(!canEdit() || !["ok","mid","no"].includes(level)) return;
+  const q=practice.list[practice.idx];
+  const row=DB.history.find(r=>r.id===practice.eventId && r.questionId===q.id);
+  if(!row || row.answer!==practice.level || level===row.answer) return;
+  const change=Number(level==="ok")-Number(row.correct);
+  dayRecord(dkey(new Date(row.at))).correct+=change;
+  DB.qstat[q.id].c+=change;
+  practice.catTally[q.cat][row.answer]--;
+  practice.catTally[q.cat][level]++;
+  row.answer=practice.level=level;
+  row.correct=level==="ok";
+  if(DB.history.findLast(r=>r.questionId===q.id)===row) updateQuestionStatus(q.id,row.correct);
+  saveDB();renderPractice();
+}
+function toggleCodeWrap(input){
+  const code=input.closest(".code-head").nextElementSibling;
+  code.classList.toggle("wrap",input.checked);code.classList.toggle("nowrap",!input.checked);
+}
+function showReference(select){
+  const q=practice.list[practice.idx];
+  select.closest(".code-head").nextElementSibling.textContent=select.value==="Python"?pythonRefs[q.id]:q.code;
+}
 function solutionHtml(q){
   var titleMap = {ok:"✅ 会做，保持住", mid:"🤔 有思路，对照看看差在哪", no:"❌ 不会没关系，先把这题看懂"};
   return '<div class="card">' +
@@ -2833,7 +2893,8 @@ function solutionHtml(q){
              '<div class="a-title">' + titleMap[practice.level] + '</div>' +
              '<div class="a-exp"><b>思路：</b>' + esc(q.hint) + '</div>' +
            '</div>' +
-           '<div class="code-head">参考代码（C++）</div>' +
+           (practice.eventId ? '<label>修改本次自评 <select onchange="correctAssessment(this.value)">'+Object.entries({ok:"会做",mid:"有思路",no:"不会"}).map(([k,v])=>'<option value="'+k+'" '+(practice.level===k?'selected':'')+'>'+v+'</option>').join('')+'</select></label>' : '') +
+           '<div class="code-head">参考代码 <select aria-label="参考语言" onchange="showReference(this)"><option>C++</option><option>Python</option></select> <label><input type="checkbox" ' + (matchMedia("(max-width:600px)").matches?"checked":"") + ' onchange="toggleCodeWrap(this)"> 自动换行</label></div>' +
            '<pre class="code-block">' + esc(q.code) + '</pre>' +
          '</div>' +
          '<button class="btn" id="btnNext">' + (practice.idx + 1 >= practice.list.length ? "查看本组结果" : "下一题") + '</button>';
@@ -2865,13 +2926,14 @@ function assess(level){
 
   updateQuestionStatus(q.id, level === "ok");
   recordAnswer(q, level, level === "ok");
+  practice.eventId=DB.history[DB.history.length-1].id;
 
   saveDB();
   renderPractice();
 }
 
 function nextQuestion(){
-  if(!practice.level || practice.idx >= practice.list.length) return;
+  if(!canEdit() || practice.idx >= practice.list.length) return;
   if(advanceReviewQueue(practice.list[practice.idx])) return;
   // 先结算这一段的学习时间，再进入下一题
   flushSession();
@@ -2933,10 +2995,10 @@ function renderChoice(){
           '答错的题已自动收进错题本，去复盘一下。' +
         '</div>' +
       '</div>' +
-      '<button class="btn" id="btnCAgain">再来一组</button>' +
+      '<button class="btn" id="btnCAgain">再练本组</button>' +
       '<button class="btn ghost" onclick="go(\'wrong\')">看错题本</button>';
     document.getElementById("btnCAgain").onclick = function(){
-      choice.list = buildChoiceList(choice.cat);
+      // 保留本组选择题。
       choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
       renderChoice();
     };
@@ -3154,7 +3216,7 @@ function renderStats(){
   var ta = totalAnswered(), tsec = totalSeconds();
   document.getElementById("totalStats").innerHTML =
     '<div class="goal-line"><span class="g-name">累计做题</span><span class="g-val">' + ta + ' 题</span></div>' +
-    '<div class="goal-line"><span class="g-name">累计学习时长</span><span class="g-val">' + Math.floor(tsec/60) + ' 分钟</span></div>' +
+    '<div class="goal-line"><span class="g-name">累计学习时长</span><span class="g-val">' + (tsec>0 && tsec<60?Math.max(1,Math.floor(tsec))+' 秒':Math.floor(tsec/60)+' 分钟') + '</span></div>' +
     '<div class="goal-line"><span class="g-name">编程真题</span><span class="g-val">' + BANK.length + ' 题</span></div>' +
     '<div class="goal-line"><span class="g-name">基础选择题</span><span class="g-val">' + CHOICE.length + ' 题</span></div>' +
     '<div class="goal-line"><span class="g-name">已做过的题</span><span class="g-val">' + DB.done.length + ' 题</span></div>' +
@@ -3214,6 +3276,11 @@ function updateMajorTip(){
    9. 初始化与事件绑定
    ========================================================= */
 async function init(){
+  if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
+    navigator.serviceWorker.register("./sw.js").then(()=>navigator.serviceWorker.ready).then(()=>{
+      document.getElementById("offlineState").textContent="离线题库已就绪，可断网答题、写草稿、看两种参考解法。运行 Python 样例与外部 OJ 需要联网。";
+    }).catch(()=>{document.getElementById("offlineState").textContent="离线缓存暂未就绪，请在联网时重新打开。";});
+  }
   ["pointerdown","keydown","input","wheel","touchmove"].forEach(type=>document.addEventListener(type,studyActivity,{passive:true}));
   setInterval(()=>{if(document.hidden)return;displayStudyTime();if(currentView==="home")tickPaper();},1000);
   document.getElementById("renameProfile").onclick = renameCurrent;
@@ -3407,7 +3474,7 @@ async function init(){
 
 function renderBackupStatus(){
   var label = document.getElementById("backupStatus");
-  var summary = "清除网站数据或结束无痕会话会丢失记录。换设备时请带上导出的备份。";
+  var summary = "本地文件、localhost 和线上网址分别保存档案。清除网站数据或结束无痕会话会丢失记录。换设备时请带上导出的备份。";
   if(DB.lastExportDay){
     var days = Math.max(0, Math.round((Date.parse(today()) - Date.parse(DB.lastExportDay)) / 86400000));
     summary += days === 0 ? " 今天已发起过备份下载。" : " 距上次导出已 " + days + " 天。";

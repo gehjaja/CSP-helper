@@ -31,8 +31,9 @@ const server = http.createServer((req,res) => {
     res.end(frame.replaceAll('https://cdn.jsdelivr.net/pyodide/v0.27.7/full/',base+'/runtime/').replaceAll('https://cdn.jsdelivr.net',base));
     return;
   }
-  const assets=['paper.js','review.js','runner.js','sample-frame.html'];
-  if(assets.includes(req.url.slice(1))){res.setHeader('Content-Type',req.url.endsWith('.js')?'application/javascript':'text/html; charset=utf-8');res.end(fs.readFileSync(path.join(root,req.url.slice(1))));return;}
+  if(req.url==='/index.html'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html);return;}
+  const assets=['sw.js','icon-192.png','icon-512.png','manifest.webmanifest','python-refs.js','paper.js','review.js','runner.js','sample-frame.html'];
+  if(assets.includes(req.url.slice(1))){res.setHeader('Content-Type',req.url.endsWith('.js')?'application/javascript':req.url.endsWith('.png')?'image/png':req.url.endsWith('.webmanifest')?'application/manifest+json':'text/html; charset=utf-8');res.end(fs.readFileSync(path.join(root,req.url.slice(1))));return;}
   res.setHeader('Content-Type','text/html; charset=utf-8');
   res.end(req.url === '/seed' ? '<!doctype html><title>Test setup</title>' : html);
 });
@@ -259,6 +260,38 @@ async function importData(page,data) {
     await page.click('#startSpaced');assert.equal((await read(page)).db.reviewQueue.ids[0],'c1');
     await page.click('[data-opt="'+bank.CHOICE[0].ans+'"]');await page.click('#btnCNext');await go(page,'choice');
     assert.equal(await page.isDisabled('#startSpaced'),true);await context.close();
+  });
+  await check('mobile practice restores the ordinary group after a single question and revises one event',async()=>{
+    const {page,context}=await setup();
+    await page.click('#startPractice');
+    await page.click('#skipPractice');
+    const before=(await read(page)).progress.practice;
+    assert.equal(before.idx,1);assert.equal((await read(page)).db.history.length,0);
+    await go(page,'bank');await page.locator('[data-question="1"]').click();
+    await page.click('[data-lv="no"]');await page.reload();await ready(page);
+    await page.getByLabel('修改本次自评').selectOption('ok');
+    let state=await read(page);assert.equal(state.db.history.length,1);
+    assert.deepEqual(state.db.qstat[1],{a:1,c:1});assert.deepEqual(state.db.wrong,[]);
+    await page.getByLabel('参考语言').selectOption('Python');assert.match(await page.textContent('.code-block'),/skips/);
+    await page.click('#btnNext');await page.click('#btnAgain');
+    assert.equal((await read(page)).progress.practice.ids.length,1);
+    await go(page,'home');await page.click('#startPractice');
+    state=await read(page);assert.deepEqual(state.progress.practice.ids,before.ids);assert.equal(state.progress.practice.idx,1);
+    await page.evaluate(()=>{practice.sessionStart=Date.now()-10000;go('home');});assert.equal(await page.textContent('#kMin + small'),'秒');
+    for(const width of [320,768]){
+      await page.setViewportSize({width,height:844});await go(page,'practice');
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    }
+    await context.close();
+  });
+  await check('offline relaunch restores the same profile, question, and Python reference',async()=>{
+    const {page,context}=await setup();await open(page,42);await page.click('[data-lv="mid"]');
+    await page.waitForFunction(()=>Boolean(navigator.serviceWorker.controller));
+    await context.setOffline(true);await page.reload();await ready(page);
+    assert.equal((await read(page)).progress.practice.level,'mid');
+    await page.getByLabel('参考语言').selectOption('Python');assert.match(await page.textContent('.code-block'),/def visit/);
+    await page.fill('#programNotes','offline');await page.reload();await ready(page);
+    assert.equal(await page.inputValue('#programNotes'),'offline');await context.close();
   });
   assert.deepEqual(errors,[],'browser console exceptions');
   console.log('All '+passed+' browser scenario groups passed. Bank: 42 programming + 56 choice.');
