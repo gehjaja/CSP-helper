@@ -10,13 +10,29 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const bank = { document: { addEventListener(){} } };
 vm.createContext(bank); vm.runInContext(script, bank); bank.validateBank();
-assert.equal(bank.BANK.length, 40); assert.equal(bank.CHOICE.length, 56);
+assert.equal(bank.BANK.length, 42); assert.equal(bank.CHOICE.length, 56);
 assert.deepEqual(Array.from(bank.CHOICE.slice(-6), q => q.ans), [1,1,0,2,1,2]);
 const legacy = JSON.parse(JSON.stringify(bank.blankDB()));
 delete legacy.favorites; delete legacy.history; delete legacy.progress;
 legacy.done=[1]; legacy.wrong=[1]; legacy.qstat={1:{a:1,c:0}};
 legacy.daily={'2026-11-15':{answered:1,correct:0,seconds:60}};
 const server = http.createServer((req,res) => {
+  // Mirror the pinned browser runtime locally so CI can exercise real Python offline.
+  const runtimeFiles=['pyodide.js','pyodide.asm.js','pyodide.asm.wasm','python_stdlib.zip','pyodide-lock.json'];
+  if(runtimeFiles.some(name=>req.url==='/runtime/'+name)){
+    res.setHeader('Access-Control-Allow-Origin','*');
+    res.setHeader('Content-Type',req.url.endsWith('.wasm')?'application/wasm':req.url.endsWith('.js')?'text/javascript':'application/octet-stream');
+    res.end(fs.readFileSync(path.join(path.dirname(require.resolve('pyodide/package.json')),path.basename(req.url))));
+    return;
+  }
+  if(req.url==='/sample-frame.html' && !process.env.CSP_LIVE_RUNTIME){
+    const frame=fs.readFileSync(path.join(root,'sample-frame.html'),'utf8');
+    res.setHeader('Content-Type','text/html; charset=utf-8');
+    res.end(frame.replaceAll('https://cdn.jsdelivr.net/pyodide/v0.27.7/full/',base+'/runtime/').replaceAll('https://cdn.jsdelivr.net',base));
+    return;
+  }
+  const assets=['paper.js','review.js','runner.js','sample-frame.html'];
+  if(assets.includes(req.url.slice(1))){res.setHeader('Content-Type',req.url.endsWith('.js')?'application/javascript':'text/html; charset=utf-8');res.end(fs.readFileSync(path.join(root,req.url.slice(1))));return;}
   res.setHeader('Content-Type','text/html; charset=utf-8');
   res.end(req.url === '/seed' ? '<!doctype html><title>Test setup</title>' : html);
 });
@@ -164,13 +180,13 @@ async function importData(page,data) {
     await page.evaluate(()=>{Storage.prototype.setItem=originalSetItem;saveDB();});await page.reload();await ready(page);
     assert.equal((await read(page)).db.history.length,1);await context.close();
   });
-  await check('all 96 questions render, score once, and appear in correct history with no page overflow',async()=>{
+  await check('all 98 questions render, score once, and appear in correct history with no page overflow',async()=>{
     const {context,page}=await setup();
     for(const q of bank.BANK){ await open(page,q.id);assert.match(await page.locator('.prob-title').textContent(),new RegExp(q.title.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));await page.click('[data-lv="ok"]'); }
     for(const q of bank.CHOICE){ await open(page,q.id);await page.click('[data-opt="'+q.ans+'"]');assert.match(await page.locator('#choiceBody .a-title').textContent(),/答对了/); }
-    const state=await read(page);assert.equal(state.db.history.length,96);assert.equal(state.db.done.length,96);assert.equal(state.db.wrong.length,0);
-    assert.equal(new Set(state.db.history.map(r=>r.id)).size,96);
-    await go(page,'stats');assert.equal(await page.locator('#historyBody [data-history]').count(),20);await page.click('#historyMore');assert.equal(await page.locator('#historyBody [data-history]').count(),40);
+    const state=await read(page);assert.equal(state.db.history.length,98);assert.equal(state.db.done.length,98);assert.equal(state.db.wrong.length,0);
+    assert.equal(new Set(state.db.history.map(r=>r.id)).size,98);
+    await go(page,'stats');assert.equal(await page.locator('#historyBody [data-history]').count(),20);await page.click('#historyLast');assert.equal(await page.locator('#historyBody [data-history]').count(),18);
     for(const view of ['home','bank','me','practice','choice','stats','wrong']){
       await go(page,view);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),view+' mobile overflow');
     }
@@ -178,6 +194,72 @@ async function importData(page,data) {
     await page.setViewportSize({width:1280,height:900});await go(page,'bank');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     await context.close();
   });
+  await check('Python executes published examples and reports wrong output independently of self review and OJ records',async()=>{
+    const {page,context}=await setup();
+    await open(page,41);await page.selectOption('#studyLanguage','python');
+    const report=page.locator('#sampleRunnerMount pre');
+    async function run(code){
+      await page.fill('#studyCode',code);await page.getByRole('button',{name:'运行 Python 样例'}).click();
+      await page.waitForFunction(()=>/公开样例通过|运行失败|超时/.test(document.querySelector('#sampleRunnerMount pre').textContent),{},{timeout:95000});
+      return report.textContent();
+    }
+    assert.match(await run('print(0)'),/公开样例通过 0 \/ 2/);
+    assert.match(await run('import sys\nn,*h=map(int,sys.stdin.buffer.read().split())\nprint(max(min(h[i:j])*(j-i) for i in range(n) for j in range(i+1,n+1)))'),/公开样例通过 2 \/ 2/);
+    await page.click('[data-lv="ok"]');await go(page,'home');assert.equal(await page.textContent('#kAcc'),'0');
+    await open(page,41);await page.selectOption('#ojVerdict','accepted');await page.fill('#ojReceipt','run-42');
+    await page.fill('#programNotes','注意等高柱');await page.selectOption('#studyLanguage','cpp');await page.fill('#studyCode','// C++ draft');
+    await page.reload();await ready(page);assert.equal(await page.inputValue('#ojReceipt'),'run-42');
+    assert.equal(await page.inputValue('#studyCode'),'// C++ draft');await page.selectOption('#studyLanguage','python');
+    assert.match(await page.inputValue('#studyCode'),/min\(h/);await go(page,'home');assert.equal(await page.textContent('#kAcc'),'1');
+    const a=(await read(page)).id;await create(page,'独立草稿');await open(page,41);
+    assert.equal(await page.inputValue('#programNotes'),'');assert.equal(await page.inputValue('#ojVerdict'),'none');
+    await select(page,a);await open(page,41);assert.equal(await page.inputValue('#programNotes'),'注意等高柱');
+    await context.close();
+  });
+  await check('mixed wrong queue resumes the answered step after reload and counts repeated misses',async()=>{
+    const {page,context}=await setup();
+    for(let i=0;i<2;i++){await open(page,1);await page.click('[data-lv="no"]');}
+    await open(page,'c1');await page.click('[data-opt="0"]');await go(page,'wrong');
+    assert.match(await page.textContent('#wrongBody'),/自评未做出 2 次/);
+    await page.click('#startWrong');await page.click('[data-lv="ok"]');await page.reload();await ready(page);
+    await go(page,'wrong');await page.click('#startWrong');await page.click('#btnNext');await page.click('[data-opt="'+bank.CHOICE[0].ans+'"]');await page.click('#btnCNext');
+    const {db}=await read(page);assert.equal(db.reviewQueue,null);assert.equal(db.wrong.length,0);assert.equal(db.history.length,5);
+    await go(page,'stats');assert.match(await page.textContent('#totalStats'),/首次作答（有明细）0 \/ 1/);
+    assert.match(await page.textContent('#totalStats'),/重复作答（有明细）1 \/ 1/);
+    await context.close();
+  });
+  await check('mock clock, backup reminder, rename and delete are profile-scoped',async()=>{
+    const {page,context}=await setup();const a=(await read(page)).id;
+    await page.click('#paperAction');await page.fill('[data-score="2"]','70');await page.locator('[data-score="2"]').dispatchEvent('change');
+    await page.reload();await ready(page);assert.equal(await page.inputValue('[data-score="2"]'),'70');assert.match(await page.textContent('#paperClock'),/剩余/);
+    await page.evaluate(()=>{DB.paper.start-=4*3600000;DB.lastExportDay=dkey(shiftDay(new Date(),-45));go('home');});
+    assert.match(await page.textContent('#paperClock'),/模拟结束/);assert.match(await page.textContent('#backupStatus'),/45 天/);
+    const b=await create(page,'临时档案');await go(page,'home');assert.equal(await page.locator('[data-score]').count(),0);
+    assert.match(await page.textContent('#backupStatus'),/尚无导出/);await go(page,'me');await page.fill('#renameInput','改名测试');await page.click('#renameProfile');
+    await page.reload();await ready(page);assert.match(await page.textContent('#activeProfileName'),/改名测试/);
+    page.once('dialog',d=>d.accept());await page.click('#deleteProfile');await page.waitForFunction(id=>activeProfile.id===id&&!profileBusy,a);
+    assert.equal(await page.evaluate(id=>localStorage.getItem(PROFILE_PREFIX+id),b),null);await go(page,'home');assert.match(await page.textContent('#paperTotal'),/70 分/);
+    await context.close();
+  });
+  await check('idle time stops at two minutes and daily recommendations pick overdue mistakes',async()=>{
+    const {page,context}=await setup();await open(page,42);
+    const seconds=await page.evaluate(()=>{
+      practice.sessionStart=lastStudyActivity=Date.now()-5*60000;
+      flushSession();resumeStudyTimer();
+      return [DB.work[42].seconds,practice.sessionStart];
+    });
+    assert.deepEqual(seconds,[120,0]);
+    await open(page,'c1');await page.click('[data-opt="0"]');await open(page,'c2');await page.click('[data-opt="'+bank.CHOICE[1].ans+'"]');
+    await page.evaluate(()=>{
+      const yesterday=shiftDay(new Date(),-1).toISOString();
+      DB.history.forEach(r=>r.at=yesterday);DB.dailyPlan=null;go('home');
+    });
+    assert.equal((await read(page)).db.dailyPlan.ids[0],'c1');
+    await go(page,'choice');assert.match(await page.textContent('#choiceReviewInfo'),/到期 1 题/);
+    await page.click('#startSpaced');assert.equal((await read(page)).db.reviewQueue.ids[0],'c1');
+    await page.click('[data-opt="'+bank.CHOICE[0].ans+'"]');await page.click('#btnCNext');await go(page,'choice');
+    assert.equal(await page.isDisabled('#startSpaced'),true);await context.close();
+  });
   assert.deepEqual(errors,[],'browser console exceptions');
-  console.log('All '+passed+' browser scenario groups passed. Bank: 40 programming + 56 choice.');
+  console.log('All '+passed+' browser scenario groups passed. Bank: 42 programming + 56 choice.');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.close();});
