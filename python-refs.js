@@ -576,3 +576,185 @@ for _ in range(int(input())):
     expr = literal, refs
     defs[name] = (length(expr, {}), ()) if op == "1" else expr`
 });
+
+Object.assign(pythonRefs, {
+  54: String.raw`import heapq
+import sys
+
+read = sys.stdin.buffer.readline
+width, m, n = map(int, read().split())
+cells = sorted(tuple(map(int, read().split())) for _ in range(m))
+index = {x: i for i, (x, w) in enumerate(cells)}
+water = [w for x, w in cells]
+left = list(range(-1, m - 1))
+right = list(range(1, m + 1))
+ready = []
+
+def add(i):
+    if 0 <= i < m:
+        water[i] += 1
+        if water[i] == 5:
+            heapq.heappush(ready, i)
+
+alive = m
+for _ in range(n):
+    add(index[int(read())])
+    while ready:
+        i = heapq.heappop(ready)
+        a, b = left[i], right[i]
+        if a >= 0:
+            right[a] = b
+        if b < m:
+            left[b] = a
+        alive -= 1
+        add(a)
+        add(b)
+    print(alive)`,
+  55: String.raw`import sys
+from bisect import bisect_left, bisect_right
+from heapq import heappush, heappop
+
+read = sys.stdin.buffer.readline
+n, m = map(int, read().split())
+nodes = [tuple(map(int, read().split())) for _ in range(n)]
+stations = [tuple(map(int, read().split())) for _ in range(m)]
+
+def prefix_masks(coords):
+    order = sorted(range(len(coords)), key=coords.__getitem__)
+    masks = [0]
+    for i in order:
+        masks.append(masks[-1] | (1 << i))
+    return [coords[i] for i in order], masks
+
+def overlaps(intervals, queries):
+    # Intersect [a,b] if the left endpoint <= b and the right endpoint >= a.
+    left, before = prefix_masks([a for a, b in intervals])
+    right, ended = prefix_masks([b for a, b in intervals])
+    return [before[bisect_right(left, b)] & ~ended[bisect_left(right, a)]
+            for a, b in queries]
+
+def coverage(boxes, queries):
+    x = overlaps([b[0] for b in boxes], [q[0] for q in queries])
+    y = overlaps([b[1] for b in boxes], [q[1] for q in queries])
+    return [a & b for a, b in zip(x, y)]
+
+points = [((x, x), (y, y)) for x, y in nodes]
+boxes = [((x-r, x+r), (y-r, y+r)) for x, y, r, t in stations]
+via = coverage(boxes, points)
+covered = coverage(points, boxes)
+unused = (1 << m) - 1
+unreached = (1 << n) - 2
+frontier, events, time = 1, [], 0
+while True:
+    if frontier & (1 << (n - 1)):
+        print(time)
+        break
+    while frontier:
+        bit = frontier & -frontier
+        frontier ^= bit
+        new = via[bit.bit_length() - 1] & unused
+        unused ^= new
+        while new:
+            station = new & -new
+            new ^= station
+            s = station.bit_length() - 1
+            heappush(events, (time + stations[s][3], s))
+    if not events:
+        print("Nan")
+        break
+    time, s = heappop(events)
+    frontier = covered[s] & unreached
+    unreached ^= frontier`,
+  56: String.raw`import sys
+read = sys.stdin.buffer.readline
+n, m = map(int, read().split())
+parent = [0, 0] + list(map(int, read().split()))
+head, tail, after, count = ([0] * (n + 1) for _ in range(4))
+for i in range(2, n + 1):
+    p = parent[i]
+    after[i], head[p] = head[p], i
+    if not tail[p]:
+        tail[p] = i
+    count[p] += 1
+data = [0] + list(map(int, read().split()))
+depth, start, bit = ([0] * (n + 1) for _ in range(3))
+size = [1] * (n + 1)
+order, stack = [], [1]
+depth[1] = 1
+while stack:
+    x = stack.pop()
+    order.append(x)
+    start[x] = len(order)
+    y = head[x]
+    while y:
+        depth[y] = depth[x] + 1
+        stack.append(y)
+        y = after[y]
+for x in reversed(order):
+    if x != 1:
+        size[parent[x]] += size[x]
+
+def add(i, delta):
+    while i <= n:
+        bit[i] += delta
+        i += i & -i
+
+for _ in range(m):
+    op, x = map(int, read().split())
+    if op == 2:
+        i, value = start[x], depth[x]
+        while i:
+            value += bit[i]
+            i -= i & -i
+        print(value)
+        continue
+    y = head[x]
+    head[x] = tail[x] = count[x] = 0
+    while y:
+        data[x] += data[y]
+        count[x] += count[y]
+        if head[y]:
+            after[tail[y]] = head[x]
+            if not head[x]:
+                tail[x] = tail[y]
+            head[x] = head[y]
+        add(start[y], -1)
+        add(start[y] + size[y], 1)
+        y = after[y]
+    print(count[x], data[x])`,
+  57: String.raw`from string import ascii_lowercase
+
+n, length = map(int, input().split())
+words = [input().strip() for _ in range(n)]
+prefix = {"": 0}
+for word in words:
+    for k in range(1, len(word) + 1):
+        prefix.setdefault(word[:k], len(prefix))
+s = len(prefix)
+missing = float("-inf")
+step = [[missing] * s for _ in range(s)]
+gain = [0] * s
+for text, j in prefix.items():
+    gain[j] = sum(text.endswith(word) for word in words)
+for text, i in prefix.items():
+    for c in ascii_lowercase:
+        suffix = text + c
+        while suffix not in prefix:
+            suffix = suffix[1:]
+        j = prefix[suffix]
+        step[i][j] = gain[j]
+
+def join(left, right):
+    columns = list(zip(*right))
+    return [[max(x + y for x, y in zip(row, col)) for col in columns]
+            for row in left]
+
+best = [[0] + [missing] * (s - 1)]
+while length:
+    if length & 1:
+        best = join(best, step)
+    length >>= 1
+    if length:
+        step = join(step, step)
+print(max(best[0]))`
+});
