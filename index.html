@@ -2249,9 +2249,246 @@ int main(){
         if(op == 1){ next.literal = length(next); next.refs.clear(); }
         defs[name] = move(next);
     }
+}`},
+  {id:54,
+   cat:"数据结构",
+   source:"CCF CSP 202403-4",
+   title:"十滴水",
+   limit:"以来源题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202403D",
+   desc:"一排 c 个格子中，最初只有 m 个位置有水，每处有 1 至 4 滴。一次操作选一个仍有水的位置加一滴。当某格达到或超过 5 滴时，它清空，并向左、右各找一个最近的非空格，各加一滴。某侧没有水就忽略该侧。空格不会因传递而重新有水。\n\n一次爆开可以让两边都达到阈值。每次都要在当前所有达到阈值的格子中选择坐标最小的先爆开，再按新的相邻关系传递。等连锁反应全部停止，才统计非空格数并处理下一次操作。初始坐标互异，输入顺序任意。",
+   input:"首行 c、m、n 为总格数、初始非空格数和操作数。随后 m 行各给坐标 x 和水量 w，再给 n 行操作坐标。1≤c≤10⁹，1≤m≤min(c,300000)，1≤n≤4m。每次操作的位置保证仍有水。",
+   output:"每次连锁反应结束后输出一行，给出仍有水的格子数。",
+   hint:"水只在初始非空格之间传递。按坐标排序，用左右邻居数组表示一条双向链。一个格子的水量刚好从 4 变成 5 时，把它加入小根堆；等待中再收到水也只需处理一次。弹出后把左右邻居接起来。每格最多删除一次，总时间 O((n+m) log m)，空间 O(m)。",
+   samples:[{"in":"15 5 3\n10 4\n1 3\n14 1\n4 4\n7 4\n7\n14\n14","out":"1\n1\n0"},{"in":"1000000000 1 2\n999999999 3\n999999999\n999999999","out":"1\n0"},{"in":"9 3 3\n9 2\n2 4\n5 2\n2\n5\n5","out":"2\n2\n1"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int width, m, n;
+    cin >> width >> m >> n;
+    vector<pair<int,int>> cells(m);
+    for (auto &cell : cells) cin >> cell.first >> cell.second;
+    sort(cells.begin(), cells.end());
+    vector<int> x(m), water(m), left(m), right(m);
+    for (int i = 0; i < m; ++i) {
+        x[i] = cells[i].first;
+        water[i] = cells[i].second;
+        left[i] = i - 1;
+        right[i] = i + 1;
+    }
+    priority_queue<int, vector<int>, greater<int>> ready;
+    auto add = [&](int i) {
+        if (i >= 0 && i < m && ++water[i] == 5) ready.push(i);
+    };
+    int alive = m;
+    while (n--) {
+        int p;
+        cin >> p;
+        add(lower_bound(x.begin(), x.end(), p) - x.begin());
+        while (!ready.empty()) {
+            int i = ready.top();
+            ready.pop();
+            int a = left[i], b = right[i];
+            if (a >= 0) right[a] = b;
+            if (b < m) left[b] = a;
+            --alive;
+            add(a);
+            add(b);
+        }
+        cout << alive << '\n';
+    }
+}`},
+  {id:55,
+   cat:"图论",
+   source:"CCF CSP 202409-4",
+   title:"通讯延迟",
+   limit:"以来源题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202409D",
+   desc:"给定 n 个通讯节点和 m 座基站。以 (x,y) 为中心、半径为 r 的基站覆盖所有满足 |X−x|≤r 且 |Y−y|≤r 的节点，包括边和角。同一座基站覆盖的任意两个节点可以互相传讯，每次使用这座基站花费 t 单位时间。不同基站的延迟可能不同。\n\n消息从输入中的第一个节点出发。收到消息的节点可以换用另一座覆盖自己的基站。两座基站的覆盖区即使相交，也必须有一个节点能在二者之间转发。求消息第一次到达最后一个节点的最早时间。",
+   input:"首行 n、m，均在 1 至 5000 之间。接下来 n 行每行给一个节点的横、纵坐标，再用 m 行分别给出基站中心 x、y、半径 r 和延迟 t。坐标与半径在 0 至 10⁹ 之间，1≤t≤10⁵。",
+   output:"可达时输出最短总延迟，否则按大小写输出 Nan。",
+   hint:"把一次基站广播看成一个按到达时间排序的事件。第一个收到消息的覆盖节点已经给出了启动该基站的最早时刻，之后无需再次启动它。按小根堆的顺序取出广播，首次被覆盖的节点即在此时收到消息。这样每座站只入堆一次，避免为同一站的所有节点两两连边。",
+   samples:[{"in":"4 4\n0 0\n2 2\n4 0\n6 2\n1 1 1 3\n3 1 1 2\n5 1 1 4\n3 1 3 15","out":"9"},{"in":"2 2\n0 0\n4 0\n1 0 1 3\n3 0 1 2","out":"Nan"},{"in":"1 1\n8 3\n0 0 0 7","out":"0"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+struct Station { int x, y, radius, delay; };
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int n, m;
+    cin >> n >> m;
+    vector<pair<int,int>> node(n);
+    for (auto &p : node) cin >> p.first >> p.second;
+    vector<Station> stations(m);
+    for (auto &s : stations) cin >> s.x >> s.y >> s.radius >> s.delay;
+    vector<bool> started(m), reached(n);
+    auto covers = [&](int s, int p) {
+        return abs(node[p].first - stations[s].x) <= stations[s].radius &&
+               abs(node[p].second - stations[s].y) <= stations[s].radius;
+    };
+    using Event = pair<long long,int>;
+    priority_queue<Event, vector<Event>, greater<Event>> events;
+    auto deliver = [&](int p, long long time) {
+        reached[p] = true;
+        for (int s = 0; s < m; ++s) {
+            if (!started[s] && covers(s, p)) {
+                started[s] = true;
+                events.emplace(time + stations[s].delay, s);
+            }
+        }
+    };
+    if (n == 1) { cout << "0\n"; return 0; }
+    deliver(0, 0);
+    while (!events.empty()) {
+        auto event = events.top();
+        events.pop();
+        for (int p = 0; p < n; ++p) {
+            if (reached[p] || !covers(event.second, p)) continue;
+            if (p == n - 1) { cout << event.first << '\n'; return 0; }
+            deliver(p, event.first);
+        }
+    }
+    cout << "Nan\n";
+}`},
+  {id:56,
+   cat:"数据结构",
+   source:"CCF CSP 202403-5",
+   title:"文件夹合并",
+   limit:"以来源题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202403E",
+   desc:"文件夹组成一棵以 1 为根的树，每个文件夹存着一定字节数的直属文件。操作 1 x 把 x 的当前直接子文件夹全部拆除：子文件夹里的直属文件归入 x，其直接子文件夹提升为 x 的新子文件夹。一次操作只合并一层。输出操作结束后 x 的直接子文件夹个数和直属文件的总字节数；对叶子操作也要输出结果。\n\n操作 2 x 询问从根走到 x 要经过多少个仍存在的文件夹，起点和终点都计入，所以查询根的答案是 1。题目保证每次操作指定的 x 仍然存在。父文件夹编号可能大于孩子编号。",
+   input:"首行 n、m，依次为文件夹数和操作数。第二行按编号 2 至 n 给父编号，第三行给 n 个初始字节数，随后 m 行各有操作类型和目标编号。1≤n≤500000，1≤m≤3n，每个初值在 0 至 100000 之间。",
+   output:"每次操作输出一行。合并时依次输出子文件夹数、字节数；查询时输出路径上的文件夹个数。",
+   hint:"把直接孩子串成带首尾指针的链。合并时只遍历本次删除的孩子，把每个孩子的整条子链拼接到新链，孙辈无需逐个搬移。原树中删掉一个节点，它的整个原子树都少经过一层。预先把子树映射为 DFS 序的连续区间，树状数组记录区间增量，查询只需取原深度加该点的增量。每个被删除的文件夹只处理一次，总时间 O((n+m) log n)。",
+   samples:[{"in":"5 7\n4 1 1 2\n1 8 2 4 16\n2 5\n1 4\n2 5\n1 1\n2 5\n1 1\n2 1","out":"4\n1 12\n3\n1 15\n2\n0 31\n1"},{"in":"1 3\n\n0\n1 1\n2 1\n1 1","out":"0 0\n1\n0 0"},{"in":"5 3\n1 1 2 3\n1 2 4 8 16\n1 1\n2 5\n1 1","out":"2 7\n2\n0 31"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int n, m;
+    cin >> n >> m;
+    vector<int> parent(n+1), head(n+1), tail(n+1), after(n+1), count(n+1);
+    for (int i = 2; i <= n; ++i) {
+        cin >> parent[i];
+        int p = parent[i];
+        after[i] = head[p];
+        head[p] = i;
+        if (!tail[p]) tail[p] = i;
+        ++count[p];
+    }
+    vector<long long> bytes(n+1);
+    for (int i = 1; i <= n; ++i) cin >> bytes[i];
+    vector<int> depth(n+1), start(n+1), size(n+1, 1), order, stack{1};
+    depth[1] = 1;
+    while (!stack.empty()) {
+        int x = stack.back();
+        stack.pop_back();
+        order.push_back(x);
+        start[x] = order.size();
+        for (int y = head[x]; y; y = after[y]) {
+            depth[y] = depth[x] + 1;
+            stack.push_back(y);
+        }
+    }
+    for (int i = n-1; i > 0; --i) size[parent[order[i]]] += size[order[i]];
+    vector<int> bit(n+1);
+    auto add = [&](int i, int v) {
+        for (; i <= n; i += i & -i) bit[i] += v;
+    };
+    while (m--) {
+        int op, x;
+        cin >> op >> x;
+        if (op == 2) {
+            int value = depth[x];
+            for (int i = start[x]; i; i -= i & -i) value += bit[i];
+            cout << value << '\n';
+            continue;
+        }
+        int y = head[x];
+        head[x] = tail[x] = count[x] = 0;
+        while (y) {
+            bytes[x] += bytes[y];
+            count[x] += count[y];
+            if (head[y]) {
+                after[tail[y]] = head[x];
+                if (!head[x]) tail[x] = tail[y];
+                head[x] = head[y];
+            }
+            add(start[y], -1);
+            add(start[y] + size[y], 1);
+            y = after[y];
+        }
+        cout << count[x] << ' ' << bytes[x] << '\n';
+    }
+}`},
+  {id:57,
+   cat:"动态规划",
+   source:"CCF CSP 201509-5",
+   title:"最佳文章",
+   limit:"以来源题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP201509E",
+   desc:"给出若干互不相同的小写英文单词。你可以任选小写英文字母，组成恰好 m 个字符的文章。每当某个给定单词作为连续子串出现一次，就得一分。相互重叠的出现分别计分，在同一位置结束的不同单词也各自计分。例如给出 a 和 aa 时，文章 aaa 的三个 a 和两个 aa 合计五分。\n\n输出所有合法文章中的最高得分。m 可以达到 10¹⁵，因而既无法生成整篇文章，也不宜为每个字符位置保存一层状态。若所有给定单词都长于文章，答案为 0。",
+   input:"第一行是单词个数 n 与文章长度 m。接下来 n 行各给一个非空单词。1≤n≤30，1≤m≤10¹⁵，所有单词的长度之和至多 100。",
+   output:"输出一行，给出恰好使用 m 个字母时的最高总分。",
+   hint:"只需记住当前文章结尾处最长的、同时也是某个单词前缀的字符串。追加一个字母后取新的最长前缀后缀；在新状态结尾匹配的所有单词都贡献一分。把一步的最高收益写进矩阵。连接两段路径时收益相加，在所有中间状态中取最大值，便可用二进制快速幂计算恰好 m 步的最优值。前缀状态数 S≤101，矩阵部分用时 O(S³ log m)，空间 O(S²)。",
+   samples:[{"in":"2 4\na\naa","out":"7"},{"in":"2 3\nabcde\nbcde","out":"0"},{"in":"2 1000000000000000\nab\nba","out":"999999999999999"},{"in":"3 5\naba\nba\na","out":"7"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+using Matrix = vector<vector<long long>>;
+// Scores are nonnegative. A missing path is stored as -1.
+Matrix join(const Matrix &a, const Matrix &b) {
+    int s = b.size();
+    Matrix out(a.size(), vector<long long>(s, -1));
+    for (size_t i = 0; i < a.size(); ++i)
+        for (int k = 0; k < s; ++k) if (a[i][k] >= 0)
+            for (int j = 0; j < s; ++j) if (b[k][j] >= 0)
+                out[i][j] = max(out[i][j], a[i][k] + b[k][j]);
+    return out;
+}
+bool endsWith(const string &text, const string &word) {
+    return text.size() >= word.size() &&
+           text.compare(text.size()-word.size(), word.size(), word) == 0;
+}
+int main() {
+    int n;
+    long long length;
+    cin >> n >> length;
+    vector<string> words(n);
+    map<string,int> id{{"", 0}};
+    for (auto &w : words) {
+        cin >> w;
+        for (size_t k = 1; k <= w.size(); ++k) {
+            string p = w.substr(0,k);
+            if (!id.count(p)) id.emplace(p, int(id.size()));
+        }
+    }
+    int s = id.size();
+    vector<int> gain(s);
+    for (const auto &p : id)
+        for (const auto &w : words) gain[p.second] += endsWith(p.first, w);
+    Matrix step(s, vector<long long>(s, -1));
+    for (const auto &p : id) {
+        for (char c = 'a'; c <= 'z'; ++c) {
+            string suffix = p.first + c;
+            while (!id.count(suffix)) suffix.erase(0,1);
+            int j = id.at(suffix);
+            step[p.second][j] = gain[j];
+        }
+    }
+    Matrix best(1, vector<long long>(s, -1));
+    best[0][0] = 0;
+    while (length) {
+        if (length & 1) best = join(best, step);
+        length >>= 1;
+        if (length) step = join(step, step);
+    }
+    cout << *max_element(best[0].begin(), best[0].end()) << '\n';
 }`}
 );
-var BANK_VERSION = "2026.11.19.2";
+var BANK_VERSION = "2026.11.19.3";
 var CATS = ["全部","模拟","基础语法","字符串","枚举","贪心","二分","动态规划","图论","数据结构","数学"];
 
 /* =========================================================
