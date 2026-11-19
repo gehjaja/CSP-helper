@@ -20,8 +20,16 @@ function renderPaper(){
   const ended=state && (state.end!==null||Date.now()>=state.start+duration);
   const counts=[0,0,0,0,0];BANK.forEach(q=>counts[Number(q.source.slice(-1))-1]++);
   root.innerHTML='<h2 class="card-title">整套模拟 · 2024 年 3 月 CSP</h2><p class="about">本站收录 '+counts.map((n,i)=>'T'+(i+1)+' '+n+' 题').join(' / ')+'。下面是同一场的 5 道公开题面，提交代码需登录曙梦 OJ，使用该站评测数据。</p>'+
-  paperNames.map((name,i)=>'<div class="goal-line"><a target="_blank" rel="noopener noreferrer" href="https://oj.shumeng.tech/p/CSP202403'+'ABCDE'[i]+'">T'+(i+1)+' '+name+' ↗</a>'+(state?'<label>OJ 得分 <input aria-label="第 '+(i+1)+' 题实得分" style="width:4em" type="number" min="0" max="100" data-score="'+i+'" value="'+(state.scores[i]??'')+'"></label>':'')+'</div>').join('')+
+  paperNames.map((name,i)=>{
+    const local=BANK.find(q=>q.source==="CCF CSP 202403-"+(i+1));
+    const title="T"+(i+1)+" "+name;
+    const oj="https://oj.shumeng.tech/p/CSP202403"+"ABCDE"[i];
+    const entry=local ? '<button class="favorite-btn" data-paper-question="'+local.id+'">'+title+' · 站内练习</button>' : '<span>'+title+' · 仅外部题面</span>';
+    return '<div class="goal-line">'+entry+' <a target="_blank" rel="noopener noreferrer" href="'+oj+'">曙梦 OJ ↗</a>' +(state?'<label>OJ 得分 <input aria-label="第 '+(i+1)+' 题实得分" style="width:4em" type="number" min="0" max="100" data-score="'+i+'" value="'+(state.scores[i]??'')+'"></label>':'')+'</div>';}).join('')+
   '<p class="about" id="paperClock"></p><p id="paperTotal"></p><button class="btn ghost" id="paperAction">'+(!state?'开始 4 小时模拟':ended?'重新模拟':'提前交卷')+'</button>';
+  root.querySelectorAll("[data-paper-question]").forEach(button=>{
+    button.onclick=()=>openQuestion(button.dataset.paperQuestion);
+  });
   function total(){
     const scores=state?.scores.filter(x=>x!==null) || [];
     const sum=scores.reduce((a,b)=>a+b,0);

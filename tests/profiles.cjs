@@ -10,7 +10,7 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const bank = { document: { addEventListener(){} } };
 vm.createContext(bank); vm.runInContext(script, bank); bank.validateBank();
-assert.equal(bank.BANK.length, 51); assert.equal(bank.CHOICE.length, 56);
+assert.equal(bank.BANK.length, 53); assert.equal(bank.CHOICE.length, 56);
 assert.deepEqual(Array.from(bank.CHOICE.slice(-6), q => q.ans), [1,1,0,2,1,2]);
 const legacy = JSON.parse(JSON.stringify(bank.blankDB()));
 delete legacy.favorites; delete legacy.history; delete legacy.progress;
@@ -181,13 +181,13 @@ async function importData(page,data) {
     await page.evaluate(()=>{Storage.prototype.setItem=originalSetItem;saveDB();});await page.reload();await ready(page);
     assert.equal((await read(page)).db.history.length,1);await context.close();
   });
-  await check('all 107 questions render, score once, and appear in correct history with no page overflow',async()=>{
+  await check('all 109 questions render, score once, and appear in correct history with no page overflow',async()=>{
     const {context,page}=await setup();
     for(const q of bank.BANK){ await open(page,q.id);assert.match(await page.locator('.prob-title').textContent(),new RegExp(q.title.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));await page.click('[data-lv="ok"]'); }
     for(const q of bank.CHOICE){ await open(page,q.id);await page.click('[data-opt="'+q.ans+'"]');assert.match(await page.locator('#choiceBody .a-title').textContent(),/答对了/); }
-    const state=await read(page);assert.equal(state.db.history.length,107);assert.equal(state.db.done.length,107);assert.equal(state.db.wrong.length,0);
-    assert.equal(new Set(state.db.history.map(r=>r.id)).size,107);
-    await go(page,'stats');assert.equal(await page.locator('#historyBody [data-history]').count(),20);await page.click('#historyLast');assert.equal(await page.locator('#historyBody [data-history]').count(),7);
+    const state=await read(page);assert.equal(state.db.history.length,109);assert.equal(state.db.done.length,109);assert.equal(state.db.wrong.length,0);
+    assert.equal(new Set(state.db.history.map(r=>r.id)).size,109);
+    await go(page,'stats');assert.equal(await page.locator('#historyBody [data-history]').count(),20);await page.click('#historyLast');assert.equal(await page.locator('#historyBody [data-history]').count(),9);
     for(const view of ['home','bank','me','practice','choice','stats','wrong']){
       await go(page,view);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),view+' mobile overflow');
     }
@@ -268,7 +268,7 @@ async function importData(page,data) {
     const before=(await read(page)).progress.practice;
     assert.equal(before.idx,1);assert.equal((await read(page)).db.history.length,0);
     await go(page,'bank');await page.selectOption('#bankType','t3');
-    assert.equal(await page.locator('#bankResults [data-question]').count(),10);
+    assert.equal(await page.locator('#bankResults [data-question]').count(),12);
     await page.selectOption('#bankType','all');await page.locator('[data-question="1"]').click();
     await page.click('[data-lv="no"]');await page.reload();await ready(page);
     await page.getByLabel('修改本次自评').selectOption('ok');
@@ -295,6 +295,27 @@ async function importData(page,data) {
     await page.fill('#programNotes','offline');await page.reload();await ready(page);
     assert.equal(await page.inputValue('#programNotes'),'offline');await context.close();
   });
+  await check('daily mix after finishing all basic problems, position labels and local mock navigation',async()=>{
+    const {context,page}=await setup();
+    await page.evaluate(()=>{
+      DB.done=BANK.filter(q=>questionSlot(q)<=2).map(q=>q.id);
+      DB.wrong=[]; DB.dailyPlan=null; go('home');
+    });
+    const slots=()=>page.evaluate(()=>DB.dailyPlan.ids.map(id=>questionSlot(byId(id))));
+    const mix=await slots();
+    assert.equal(mix.filter(n=>n<=2).length,2);assert.ok(mix.includes(3));
+    await page.reload();await ready(page);assert.deepEqual(await slots(),mix);
+    await page.evaluate(()=>{DB.dailyPlan=null;DB.wrong=[42,51];go('home');});
+    assert.equal((await slots()).filter(n=>n>=3).length,1);
+    assert.equal(await page.locator('#todayReview .slot-badge').count(),3);
+    assert.equal(await page.locator('[data-paper-question]').count(),3);
+    await page.click('[data-paper-question="51"]');
+    assert.match(await page.textContent('#practiceBody .slot-badge'),/T3/);
+    await go(page,'wrong');assert.match(await page.textContent('#wrongBody'),/T5/);
+    await go(page,'bank');await page.selectOption('#bankType','t3');await page.selectOption('#bankOrder','slot');
+    assert.equal(await page.locator('#bankResults [data-question]').first().getAttribute('data-question'),'53');
+    await context.close();
+  });
   assert.deepEqual(errors,[],'browser console exceptions');
-  console.log('All '+passed+' browser scenario groups passed. Bank: 51 programming + 56 choice.');
+  console.log('All '+passed+' browser scenario groups passed. Bank: 53 programming + 56 choice.');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.close();});

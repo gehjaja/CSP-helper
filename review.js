@@ -5,8 +5,8 @@ function readReviewQueue(raw){
   return {mode:raw.mode,ids:raw.ids.map(id=>byId(id).id),pos:raw.pos};
 }
 function readDailyPlan(raw){
-  return raw && validDate(raw.day) && Array.isArray(raw.ids) && raw.ids.length===3 && raw.ids.every(byId)
-    ? {day:raw.day,ids:raw.ids.map(id=>byId(id).id)} : null;
+  return raw && raw.version===2 && validDate(raw.day) && Array.isArray(raw.ids) && raw.ids.length===3 && raw.ids.every(byId)
+    ? {version:2,day:raw.day,ids:raw.ids.map(id=>byId(id).id)} : null;
 }
 function missCount(id){ const stat=DB.qstat[id]; return stat ? stat.a-stat.c : 0; }
 function rankedWrong(){ return DB.wrong.slice().sort((a,b)=>missCount(b)-missCount(a)); }
@@ -22,15 +22,34 @@ function dueChoices(){
   }
   return CHOICE.filter(q=>schedule.has(q.id)?schedule.get(q.id).due<=today():DB.done.includes(q.id)).map(q=>q.id);
 }
+function planThree(){
+  const chosen=[];
+  const wrong=rankedWrong(), due=dueChoices();
+  const easy=BANK.filter(q=>questionSlot(q)<=2).map(q=>q.id);
+  const recent=new Map(DB.history.map(row=>[row.questionId,Date.parse(row.at)]));
+  const reviewOrder=easy.slice().sort((a,b)=>(recent.get(a)||0)-(recent.get(b)||0));
+  const hard=BANK.filter(q=>questionSlot(q)>=3).sort((a,b)=>questionSlot(a)-questionSlot(b)).map(q=>q.id);
+  const fresh=ids=>ids.filter(id=>!DB.done.includes(id));
+  function pick(ids){
+    const id=ids.find(id=>!chosen.includes(id));
+    if(id!==undefined) chosen.push(id);
+  }
+  // A difficult mistake can fill both the review and challenge requirements.
+  pick(wrong);
+  pick([...fresh(easy),...reviewOrder]);
+  if(!chosen.some(id=>questionSlot(byId(id))>=3)) pick([...fresh(hard),...hard]);
+  if(chosen.length<3) pick([...due,...fresh(easy),...reviewOrder]);
+  return chosen;
+}
 function renderDailyReview(){
   if(!DB.dailyPlan || DB.dailyPlan.day!==today()){
-    const fresh=BANK.concat(CHOICE).filter(q=>!DB.done.includes(q.id)).map(q=>q.id);
-    const ids=Array.from(new Set([...rankedWrong(),...dueChoices(),...fresh,...BANK.map(q=>q.id)])).slice(0,3);
-    DB.dailyPlan={day:today(),ids};
+    const ongoing=DB.reviewQueue;
+    const ids=ongoing?.mode==="daily" && ongoing.ids.length===3 ? ongoing.ids.slice() : planThree();
+    DB.dailyPlan={version:2,day:today(),ids};
   }
   document.getElementById("todayReview").innerHTML=DB.dailyPlan.ids.map(id=>{
     const q=byId(id);
-    return '<p>'+esc(q.title||q.q)+' <small>· '+(DB.wrong.includes(id)?"错题巩固":DB.done.includes(id)?"复习":"新题")+'</small></p>';
+    return '<p>'+slotBadge(q)+esc(q.title||q.q)+' <small>· '+(DB.wrong.includes(id)?"错题巩固":DB.done.includes(id)?"复习":"新题")+'</small></p>';
   }).join("");
 }
 function renderSpacedReview(){
