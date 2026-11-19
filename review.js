@@ -15,7 +15,9 @@ function readDailyPlan(raw){
   for(const id of ids){
     if(["已作答","已跳过","已走过"].includes(raw.steps?.[id])) steps[id]=raw.steps[id];
   }
-  return {version:2,day:raw.day,ids,steps};
+  const recent=Array.isArray(raw.recent) && raw.recent.length<=BANK.length+CHOICE.length
+    ? [...new Set(raw.recent.map(id=>byId(id)?.id).filter(id=>id!==undefined))] : [];
+  return {version:2,day:raw.day,ids,steps,recent};
 }
 function missCount(id){ const stat=DB.qstat[id]; return stat ? stat.a-stat.c : 0; }
 function rankedWrong(){ return DB.wrong.slice().sort((a,b)=>missCount(b)-missCount(a)); }
@@ -31,11 +33,14 @@ function dueChoices(){
   }
   return CHOICE.filter(q=>schedule.has(q.id)?schedule.get(q.id).due<=today():(DB.done.includes(q.id)||DB.qstat[q.id]?.a>0)).map(q=>q.id);
 }
-function planThree(previous=[]){
-  const chosen=[];
-  const wrong=rankedWrong(), due=dueChoices();
+function coolingMistakes(){
   const cutoff=dkey(shiftDay(new Date(today()+"T12:00:00"),-3));
-  const available=id=>!previous.includes(id) && !(DB.wrong.includes(id) && DB.reviewOffers[id]>cutoff);
+  return new Set(DB.wrong.filter(id=>DB.reviewOffers[id]>cutoff));
+}
+function planThree(previous=[], cooling=coolingMistakes()){
+  const excluded=new Set(previous), chosen=[];
+  const wrong=rankedWrong(), due=dueChoices();
+  const available=id=>!excluded.has(id) && !cooling.has(id);
   const easy=BANK.filter(q=>questionSlot(q)<=2).map(q=>q.id);
   const recent=new Map(DB.history.map(row=>[row.questionId,Date.parse(row.at)]));
   const reviewOrder=easy.slice().sort((a,b)=>(recent.get(a)||0)-(recent.get(b)||0));
@@ -57,16 +62,23 @@ function planThree(previous=[]){
   }
   if(chosen.length===3) return chosen;
   // Even a profile with the entire bank on cooldown can open a full group.
-  for(const id of pool.filter(id=>!previous.includes(id)).sort((a,b)=>(DB.reviewOffers[a]||"").localeCompare(DB.reviewOffers[b]||""))){
+  for(const id of pool.filter(id=>!excluded.has(id)).sort((a,b)=>(DB.reviewOffers[a]||"").localeCompare(DB.reviewOffers[b]||""))){
     if(chosen.length===3) break;
     if(!chosen.includes(id)) chosen.push(id);
   }
   return chosen;
 }
-function makeDailyPlan(previous){
-  const ids=planThree(previous),day=today();
+function setDailyPlan(recent=[]){
+  const cooling=coolingMistakes(), total=BANK.length+CHOICE.length;
+  // Keep three eligible candidates. At the end of a rotation, release only
+  // the oldest offers needed to fill the last group alongside unseen questions.
+  const useCooldown=total-cooling.size>=3;
+  const poolSize=useCooldown?total-cooling.size:total;
+  const eligibleHistory=useCooldown?recent.filter(id=>!cooling.has(id)):recent;
+  const keepFrom=Math.max(0,eligibleHistory.length-(poolSize-3));
+  const ids=planThree(eligibleHistory.slice(keepFrom),cooling), day=today();
+  DB.dailyPlan={version:2,day,ids,steps:{},recent};
   for(const id of ids){if(DB.wrong.includes(id)) DB.reviewOffers[id]=day;}
-  return {version:2,day,ids,steps:{}};
 }
 function currentStepAnswered(group){
   const id=group.ids[group.pos], state=isChoice(byId(id))?choice:practice;
@@ -75,7 +87,7 @@ function currentStepAnswered(group){
 }
 function ensureDailyPlan(){
   const group=DB.reviewQueue;
-  if(group?.mode!=="daily" && (!DB.dailyPlan || DB.dailyPlan.day!==today())) DB.dailyPlan=makeDailyPlan();
+  if(group?.mode!=="daily" && (!DB.dailyPlan || DB.dailyPlan.day!==today())) setDailyPlan();
 }
 function renderDailyReview(){
   ensureDailyPlan();
@@ -111,10 +123,13 @@ function leaveReviewQueue(){
 }
 function replaceDailyPlan(){
   if(!canEdit()) return;
-  const previous=DB.dailyPlan.ids;
   if(DB.reviewQueue?.mode==="daily" && !leaveReviewQueue()) return;
-  DB.dailyPlan=makeDailyPlan(previous);
-  renderDailyReview();saveDB();
+  const plan=DB.dailyPlan;
+  const earlier=plan.day===today() ? (plan.recent || []) : [];
+  const recent=earlier.filter(id=>!plan.ids.includes(id)).concat(plan.ids);
+  setDailyPlan(recent);
+  saveDB();
+  renderDailyReview();
 }
 function renderSpacedReview(){
   const count=dueChoices().length;
