@@ -10,7 +10,7 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const bank = { document: { addEventListener(){} } };
 vm.createContext(bank); vm.runInContext(script, bank); bank.validateBank();
-assert.equal(bank.BANK.length, 42); assert.equal(bank.CHOICE.length, 56);
+assert.equal(bank.BANK.length, 51); assert.equal(bank.CHOICE.length, 56);
 assert.deepEqual(Array.from(bank.CHOICE.slice(-6), q => q.ans), [1,1,0,2,1,2]);
 const legacy = JSON.parse(JSON.stringify(bank.blankDB()));
 delete legacy.favorites; delete legacy.history; delete legacy.progress;
@@ -181,13 +181,13 @@ async function importData(page,data) {
     await page.evaluate(()=>{Storage.prototype.setItem=originalSetItem;saveDB();});await page.reload();await ready(page);
     assert.equal((await read(page)).db.history.length,1);await context.close();
   });
-  await check('all 98 questions render, score once, and appear in correct history with no page overflow',async()=>{
+  await check('all 107 questions render, score once, and appear in correct history with no page overflow',async()=>{
     const {context,page}=await setup();
     for(const q of bank.BANK){ await open(page,q.id);assert.match(await page.locator('.prob-title').textContent(),new RegExp(q.title.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));await page.click('[data-lv="ok"]'); }
     for(const q of bank.CHOICE){ await open(page,q.id);await page.click('[data-opt="'+q.ans+'"]');assert.match(await page.locator('#choiceBody .a-title').textContent(),/答对了/); }
-    const state=await read(page);assert.equal(state.db.history.length,98);assert.equal(state.db.done.length,98);assert.equal(state.db.wrong.length,0);
-    assert.equal(new Set(state.db.history.map(r=>r.id)).size,98);
-    await go(page,'stats');assert.equal(await page.locator('#historyBody [data-history]').count(),20);await page.click('#historyLast');assert.equal(await page.locator('#historyBody [data-history]').count(),18);
+    const state=await read(page);assert.equal(state.db.history.length,107);assert.equal(state.db.done.length,107);assert.equal(state.db.wrong.length,0);
+    assert.equal(new Set(state.db.history.map(r=>r.id)).size,107);
+    await go(page,'stats');assert.equal(await page.locator('#historyBody [data-history]').count(),20);await page.click('#historyLast');assert.equal(await page.locator('#historyBody [data-history]').count(),7);
     for(const view of ['home','bank','me','practice','choice','stats','wrong']){
       await go(page,view);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),view+' mobile overflow');
     }
@@ -267,7 +267,9 @@ async function importData(page,data) {
     await page.click('#skipPractice');
     const before=(await read(page)).progress.practice;
     assert.equal(before.idx,1);assert.equal((await read(page)).db.history.length,0);
-    await go(page,'bank');await page.locator('[data-question="1"]').click();
+    await go(page,'bank');await page.selectOption('#bankType','t3');
+    assert.equal(await page.locator('#bankResults [data-question]').count(),10);
+    await page.selectOption('#bankType','all');await page.locator('[data-question="1"]').click();
     await page.click('[data-lv="no"]');await page.reload();await ready(page);
     await page.getByLabel('修改本次自评').selectOption('ok');
     let state=await read(page);assert.equal(state.db.history.length,1);
@@ -294,5 +296,5 @@ async function importData(page,data) {
     assert.equal(await page.inputValue('#programNotes'),'offline');await context.close();
   });
   assert.deepEqual(errors,[],'browser console exceptions');
-  console.log('All '+passed+' browser scenario groups passed. Bank: 42 programming + 56 choice.');
+  console.log('All '+passed+' browser scenario groups passed. Bank: 51 programming + 56 choice.');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.close();});
