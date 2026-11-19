@@ -24,8 +24,8 @@ function renderPaper(){
     const local=BANK.find(q=>q.source==="CCF CSP 202403-"+(i+1));
     const title="T"+(i+1)+" "+name;
     const oj="https://oj.shumeng.tech/p/CSP202403"+"ABCDE"[i];
-    const entry=local ? '<button class="favorite-btn" data-paper-question="'+local.id+'">'+title+' · 站内练习</button>' : '<span>'+title+' · 仅外部题面</span>';
-    return '<div class="goal-line">'+entry+' <a target="_blank" rel="noopener noreferrer" href="'+oj+'">曙梦 OJ ↗</a>' +(state?'<label>OJ 得分 <input aria-label="第 '+(i+1)+' 题实得分" style="width:4em" type="number" min="0" max="100" data-score="'+i+'" value="'+(state.scores[i]??'')+'"></label>':'')+'</div>';}).join('')+
+    const entry=local ? '<button class="favorite-btn" data-paper-question="'+local.id+'">'+title+' · 站内练习</button>' : '<span>'+title+' · 仅在 OJ 作答</span>';
+    return '<div class="goal-line">'+entry+' <a target="_blank" rel="noopener noreferrer" href="'+oj+'">去曙梦 OJ 作答 ↗</a>' +(state?'<label>OJ 得分 <input aria-label="第 '+(i+1)+' 题实得分" style="width:4em" type="number" min="0" max="100" data-score="'+i+'" value="'+(state.scores[i]??'')+'"></label>':'')+'</div>';}).join('')+
   '<p class="about" id="paperClock"></p><p id="paperTotal"></p><button class="btn ghost" id="paperAction">'+(!state?'开始 4 小时模拟':ended?'重新模拟':'提前交卷')+'</button>';
   root.querySelectorAll("[data-paper-question]").forEach(button=>{
     button.onclick=()=>openQuestion(button.dataset.paperQuestion);
@@ -60,8 +60,10 @@ function renderPaper(){
 }
 function tickPaper(){
   const el=document.getElementById("paperClock"),s=DB.paper;if(!el)return;
+  const running=!!s && s.end===null && Date.now()<s.start+duration;
+  for(const button of document.querySelectorAll("[data-paper-question]")) button.disabled=running;
   if(!s){el.textContent="开始后持续计时 4 小时，切后台、刷新或关闭页面仍计入考试时间。";return;}
   const left=Math.max(0,Math.ceil((s.start+duration-Date.now())/1000));
   if(!left||s.end!==null){el.textContent=s.end!==null?"已交卷":"4 小时已到，模拟结束";document.getElementById("paperAction").textContent="重新模拟";return;}
-  el.textContent="剩余 "+[Math.floor(left/3600),Math.floor(left/60)%60,left%60].map(x=>String(x).padStart(2,"0")).join(":");
+  el.textContent="剩余 "+[Math.floor(left/3600),Math.floor(left/60)%60,left%60].map(x=>String(x).padStart(2,"0")).join(":")+" · 模拟中请在 OJ 作答，交卷或到时后开放站内练习。";
 }

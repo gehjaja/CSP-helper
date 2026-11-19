@@ -229,11 +229,66 @@ async function importData(page,data) {
     assert.match(await page.textContent('#totalStats'),/重复作答（有明细）1 \/ 1/);
     await context.close();
   });
+  await check('daily resume survives reload, cancelled navigation and midnight, then completes exactly once',async()=>{
+    const {page,context}=await setup();
+    await page.click('#startDaily');await page.click('[data-lv="ok"]');await page.click('#btnNext');
+    const original=(await read(page)).db.reviewQueue;
+    await go(page,'home');await page.reload();await ready(page);
+    assert.equal(await page.isVisible('#resumeOtherReview'),false);
+    assert.match(await page.textContent('#startDaily'),/继续今日复习/);
+    assert.match(await page.textContent('#dailyStatus'),/第 2 \/ 3 题/);
+    assert.match(await page.textContent('#todayReview'),/已作答/);
+    for(const selector of ['#startPractice','#replaceDaily']){
+      page.once('dialog',d=>d.dismiss());await page.click(selector);
+      assert.deepEqual((await read(page)).db.reviewQueue,original);
+    }
+    await page.evaluate(()=>{const day=dkey(shiftDay(new Date(),-1));DB.dailyPlan.day=DB.reviewQueue.day=day;saveDB();});
+    await page.reload();await ready(page);assert.match(await page.textContent('#dailyStatus'),/跨天/);
+    await page.click('#startDaily');assert.equal(await page.textContent('.prob-title'),bank.BANK.find(q=>q.id===original.ids[1]).title);
+    assert.match(await page.textContent('#practiceBody'),/后面还有 1 题/);
+    await page.click('#skipPractice');await page.click('[data-lv="mid"]');await page.click('#btnNext');
+    let state=await read(page);assert.equal(state.db.history.length,2);assert.equal(state.db.reviewQueue,null);
+    assert.equal(state.db.dailyPlan.day,original.day);assert.deepEqual(state.db.dailyPlan.steps,{});
+    await page.click('#startDaily');await page.click('#skipPractice');await go(page,'home');
+    page.once('dialog',d=>d.accept());await page.click('#startPractice');
+    assert.equal((await read(page)).db.reviewQueue,null);await go(page,'home');
+    assert.match(await page.textContent('#todayReview'),/已跳过/);
+    await page.click('#startDaily');assert.equal((await read(page)).db.reviewQueue.pos,1);
+    await page.click('#skipPractice');await page.click('#skipPractice');
+    assert.equal(await page.isDisabled('#startDaily'),true);
+    const previous=(await read(page)).db.dailyPlan.ids;
+    await page.click('#replaceDaily');state=await read(page);
+    assert.equal(new Set(state.db.dailyPlan.ids).size,3);assert.ok(state.db.dailyPlan.ids.every(id=>!previous.includes(id)));
+    await context.close();
+  });
+  await check('daily mistakes cool down across dates, legacy totals qualify for spaced review',async()=>{
+    const {page,context}=await setup();
+    const results=await page.evaluate(()=>{
+      DB.qstat.c2={a:2,c:1};DB.done=BANK.map(q=>q.id);DB.wrong=[1];
+      const dates=[0,1,2,3].map(n=>dkey(shiftDay(new Date(),n)));
+      const original=today,groups=[];
+      try{
+        for(const day of dates){
+          today=()=>day;
+          DB.dailyPlan=null;renderDailyReview();groups.push(DB.dailyPlan.ids);
+        }
+      }finally{today=original;}
+      return {groups,due:dueChoices()};
+    });
+    assert.ok(results.due.includes('c2'));
+    assert.deepEqual(results.groups.map(ids=>ids.includes(1)),[true,false,false,true]);
+    assert.ok(results.groups.every(ids=>new Set(ids).size===3));
+    await context.close();
+  });
   await check('mock clock, backup reminder, rename and delete are profile-scoped',async()=>{
     const {page,context}=await setup();const a=(await read(page)).id;
-    await page.click('#paperAction');await page.fill('[data-score="2"]','70');await page.locator('[data-score="2"]').dispatchEvent('change');
+    await page.click('#paperAction');
+    assert.equal(await page.locator('[data-paper-question]:disabled').count(),3);
+    assert.equal(await page.locator('#paperPanel a').count(),5);
+    await page.fill('[data-score="2"]','70');await page.locator('[data-score="2"]').dispatchEvent('change');
     await page.reload();await ready(page);assert.equal(await page.inputValue('[data-score="2"]'),'70');assert.match(await page.textContent('#paperClock'),/剩余/);
     await page.evaluate(()=>{DB.paper.start-=4*3600000;DB.lastExportDay=dkey(shiftDay(new Date(),-45));go('home');});
+    assert.equal(await page.locator('[data-paper-question]:disabled').count(),0);
     assert.match(await page.textContent('#paperClock'),/模拟结束/);assert.match(await page.textContent('#backupStatus'),/45 天/);
     const b=await create(page,'临时档案');await go(page,'home');assert.equal(await page.locator('[data-score]').count(),0);
     assert.match(await page.textContent('#backupStatus'),/尚无导出/);await go(page,'me');await page.fill('#renameInput','改名测试');await page.click('#renameProfile');
@@ -310,9 +365,11 @@ async function importData(page,data) {
     assert.equal(await page.locator('#todayReview .slot-badge').count(),3);
     assert.equal(await page.locator('[data-paper-question]').count(),3);
     await page.click('[data-paper-question="51"]');
-    assert.match(await page.textContent('#practiceBody .slot-badge'),/T3/);
+    assert.match(await page.textContent('#practiceBody .slot-badge'),/T3.*2024/);
     await go(page,'wrong');assert.match(await page.textContent('#wrongBody'),/T5/);
     await go(page,'bank');await page.selectOption('#bankType','t3');await page.selectOption('#bankOrder','slot');
+    assert.match(await page.textContent('#bankType option[value=t4]'),/1 道，收录中/);
+    assert.match(await page.textContent('#bankResults'),/早期题（2014）/);
     assert.equal(await page.locator('#bankResults [data-question]').first().getAttribute('data-question'),'53');
     await context.close();
   });

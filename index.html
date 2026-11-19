@@ -218,6 +218,8 @@ input,select{font-family:inherit;font-size:16px;color:inherit;}
   background:var(--brand);color:var(--brand-on);
   font-size:16px;font-weight:600;text-align:center;margin-top:14px;
 }
+.btn[hidden]{display:none;}
+#paperPanel button:disabled,#startDaily:disabled{opacity:.65;}
 .btn.ghost{background:var(--card);color:var(--text);border:1px solid var(--line);font-weight:500;}
 .btn.danger{background:var(--card);color:var(--bad);border:1px solid var(--bad);font-weight:500;}
 
@@ -438,9 +440,12 @@ button:disabled{cursor:default;}
   </div>
 
   <div class="card" style="margin-top:12px">
-    <h2 class="card-title">今天练这三题</h2>
+    <h2 class="card-title" id="dailyTitle">今日三题</h2>
+    <p class="about" id="dailyStatus"></p>
     <div id="todayReview"></div>
     <button id="startDaily" class="btn" onclick="startReview('daily')">开始今日练习</button>
+    <button class="favorite-btn" id="replaceDaily" onclick="replaceDailyPlan()">换一批</button>
+    <button class="btn ghost" id="resumeOtherReview" hidden onclick="startReview(DB.reviewQueue.mode)"></button>
   </div>
   <div class="home-actions">
     <button id="startPractice" class="btn" onclick="startPractice()">开始真题练习 →</button>
@@ -2423,6 +2428,7 @@ var historyPage = 0;
 
 function blankDB(){
   return {
+    reviewOffers:{}, // 上次在每日推荐中出现的错题日期
     work:{}, // 按稳定题号保存笔记、草稿、OJ 结果和累计用时
     settings:{ examDate:"", major:"chem", targetScore:"" },
     daily:{},      // "2026-10-05": {answered, correct, seconds}
@@ -2535,6 +2541,17 @@ function normalizeDB(obj){
   result.paper = readPaper(obj.paper);
   result.reviewQueue = readReviewQueue(obj.reviewQueue);
   result.dailyPlan = readDailyPlan(obj.dailyPlan);
+  const queue=result.reviewQueue;
+  if(queue?.mode==="daily"){
+    const same=result.dailyPlan?.ids.join(",")===queue.ids.join(",");
+    queue.day ||= same?result.dailyPlan.day:today();
+    if(!same) result.dailyPlan={version:2,day:queue.day,ids:queue.ids.slice(),steps:{}};
+    for(const id of queue.ids.slice(0,queue.pos)) result.dailyPlan.steps[id] ||= "已走过";
+  }
+  for(const q of BANK.concat(CHOICE)){
+    const day=obj.reviewOffers?.[q.id];
+    if(validDate(day)) result.reviewOffers[q.id]=day;
+  }
   result.normalPractice = normalizeProgress({practice:obj.normalPractice}).practice;
   result.progress = normalizeProgress(obj.progress);
   return result;
@@ -2983,7 +3000,9 @@ function isChoice(q){ return q && q.opts !== undefined; }
 function questionSlot(q){return isChoice(q)?0:Number(q.source.slice(-1));}
 function slotBadge(q){
   const n=questionSlot(q);
-  return '<span class="slot-badge">'+(n?'T'+n+' · '+["","基础","基础","进阶","挑战","挑战"][n]:'基础选择')+'</span> ';
+  const year=n===3?Number(q.source.match(/\d{4}/)[0]):0;
+  const era=year?" · "+(year<=2016?"早期题":year>=2020?"2020 年代":"2010 年代")+"（"+year+"）":"";
+  return '<span class="slot-badge">'+(n?'T'+n+' · '+["","基础","基础","进阶","挑战","挑战"][n]+era:'基础选择')+'</span> ';
 }
 function matchingQuestions(query, type, status){
   query = query.trim().toLowerCase();
@@ -3001,6 +3020,10 @@ function matchingQuestions(query, type, status){
 }
 
 function renderBank(){
+  for(const n of [4,5]){
+    const count=BANK.filter(q=>questionSlot(q)===n).length;
+    document.querySelector('#bankType option[value="t'+n+'"]').textContent="T"+n+"（"+count+" 道"+(count<3?"，收录中":"")+"）";
+  }
   var list = matchingQuestions(document.getElementById("bankQuery").value,
     document.getElementById("bankType").value, document.getElementById("bankStatus").value);
   if(document.getElementById("bankOrder").value==="slot") list.sort((a,b)=>(questionSlot(a)||6)-(questionSlot(b)||6) || (b.source||"").localeCompare(a.source||""));
@@ -3015,7 +3038,7 @@ function renderBank(){
 function openQuestion(id, keepReviewQueue){
   var q = byId(id);
   if(!q) return;
-  if(!keepReviewQueue) DB.reviewQueue = null;
+  if(!keepReviewQueue && !leaveReviewQueue()) return;
   if(isChoice(q)){
     choice.cat = "全部"; choice.list = [q];
     choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
@@ -3180,7 +3203,7 @@ function buildList(cat){
 }
 
 function startPractice(){
-  DB.reviewQueue=null;
+  if(!leaveReviewQueue()) return;
   if(practice.list.length===1 && practice.cat==="全部"){
     const group=DB.normalPractice;
     practice.list=group ? group.ids.map(byId) : [];
@@ -3195,7 +3218,7 @@ function startPractice(){
   go("practice");
 }
 function practiceNew(){
-  DB.reviewQueue = null;
+  if(!leaveReviewQueue()) return;
   practice.cat = "全部";
   practice.list = BANK.filter(function(q){ return q.id >= 23; });
   practice.idx = 0;
@@ -3269,7 +3292,7 @@ function renderPractice(){
     '<div class="card">' +
       '<div class="q-head">' +
         '<span class="q-tag">' + q.cat + '</span>' +
-        '<span>' + slotBadge(q) + q.source + ' · 第 ' + (practice.idx + 1) + ' / ' + practice.list.length + ' 题</span>' +
+        '<span>' + slotBadge(q) + q.source + (DB.reviewQueue?.ids[DB.reviewQueue.pos]===q.id?"":" · 第 "+(practice.idx+1)+" / "+practice.list.length+" 题") + '</span>' +
       '</div>' +
       '<h3 class="prob-title">' + esc(q.title) + '</h3>' +
       favoriteHtml(q) +
@@ -3467,7 +3490,7 @@ function renderChoice(){
     '<div class="card">' +
       '<div class="q-head">' +
         '<span class="q-tag">' + q.cat + '</span>' +
-        '<span>第 ' + (choice.idx + 1) + ' / ' + choice.list.length + ' 题</span>' +
+        (DB.reviewQueue?.ids[DB.reviewQueue.pos]===q.id?"":"<span>第 "+(choice.idx+1)+" / "+choice.list.length+" 题</span>") +
       '</div>' +
       '<div class="q-text">' + esc(q.q) + '</div>' +
       favoriteHtml(q) +
@@ -3766,8 +3789,8 @@ async function init(){
   document.getElementById("catChips").onclick = function(e){
     var c = e.target.closest(".chip");
     if(!c) return;
+    if(!leaveReviewQueue()) return;
     practice.cat = c.dataset.cat;
-    DB.reviewQueue = null;
     practice.list = buildList(practice.cat);
     practice.idx = 0; practice.level = ""; practice.catTally = {};
     renderPractice();
@@ -3777,8 +3800,8 @@ async function init(){
   document.getElementById("choiceChips").onclick = function(e){
     var c = e.target.closest(".chip");
     if(!c) return;
+    if(!leaveReviewQueue()) return;
     choice.cat = c.dataset.ccat;
-    DB.reviewQueue = null;
     choice.list = buildChoiceList(choice.cat);
     choice.idx = 0; choice.chosen = -1; choice.revealed = false; choice.right = 0;
     renderChoice();
