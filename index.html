@@ -490,7 +490,7 @@ button:disabled{cursor:default;}
     <h2 class="card-title">题库目录</h2>
     <div class="bank-filters">
       <div class="field"><label for="bankQuery">题名、年份、题号或关键词</label><input type="search" id="bankQuery" placeholder="例如 202403、归一化、前缀和"></div>
-      <div class="field"><label for="bankType">题目类型</label><select id="bankType"><option value="all">全部题目</option><option value="program">编程题</option><option value="choice">选择题</option></select></div>
+      <div class="field"><label for="bankType">题目类型</label><select id="bankType"><option value="all">全部题目</option><option value="program">编程题</option><option value="t3">历届第三题（T3）</option><option value="choice">选择题</option></select></div>
       <div class="field"><label for="bankStatus">练习状态</label><select id="bankStatus"><option value="all">全部状态</option><option value="new">未做过</option><option value="wrong">待复习</option><option value="done">已做过</option><option value="favorite">已收藏</option></select></div>
     </div>
     <p class="about" id="bankResultCount" role="status" aria-live="polite"></p>
@@ -1811,8 +1811,363 @@ int main() {
     cout << count << '\n';
 }`}
 );
-var BANK_VERSION = "2026.11.18";
-var CATS = ["全部","模拟","基础语法","字符串","枚举","贪心","二分","动态规划","图论","数据结构"];
+BANK.push(
+  {id:43,cat:"字符串",source:"CCF CSP 201403-3",title:"命令行选项",limit:"1000 ms · 256 MiB",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP201403C",
+   desc:"逐行解析命令名之后的选项。格式串中每个小写字母代表一个选项，后跟冒号表示必带一个参数。参数可以长得像选项。遇到未知选项或普通单词即停止；末尾缺参的选项不计。",
+   input:"格式串长度至多 52；下一行是命令数 N（1 至 20），随后每行一条命令，不超过 256 个字符。单词用空格分隔。",
+   output:"每行以 Case i: 开头，按字母顺序列出出现过的选项；重复选项仅保留最后一次有效参数。",
+   samples:[{"in":"ab:\n3\ntool -b -a -a\ntool -b x -b y -b\ntool junk -a","out":"Case 1: -a -b -a\nCase 2: -b y\nCase 3:"}],
+   hint:"游标每次消费一个选项；需要参数时再消费一个完整单词。用有序映射整理输出。",
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    string fmt,line;
+    cin >> fmt;
+    int n; cin >> n; getline(cin,line);
+    for(int i=1;i<=n;i++){
+        getline(cin,line); istringstream words(line);
+        string word,arg; words >> word;
+        map<string,string> found;
+        while(words >> word){
+            if(word.size()!=2 || word[0]!='-' || !islower(word[1])) break;
+            auto p=fmt.find(word[1]);
+            if(p==string::npos) break;
+            arg.clear();
+            if(fmt[p+1]==':' && !(words>>arg)) break;
+            found[word]=arg;
+        }
+        cout<<"Case "<<i<<":";
+        for(auto item:found){
+            cout<<" "<<item.first;
+            if(!item.second.empty()) cout<<" "<<item.second;
+        }
+        cout<<"\n";
+    }
+}`},
+  {id:44,cat:"模拟",source:"CCF CSP 201412-3",title:"集合竞价",limit:"1000 ms · 256 MiB",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP201412C",
+   desc:"按行记录买单、卖单及撤单。对尚有效的报价 p，将价格至少为 p 的买单股数与价格至多为 p 的卖单股数分别求和，较小者为可成交量。选择成交量最大的报价，并列时选最高价。",
+   input:"读至文件末尾，至多 5000 行。buy 或 sell 后接两位小数价格及股数；cancel i 撤销第 i 行订单（行号从 1 开始）。单价至多 10000，单笔至多 10⁸ 股。",
+   output:"输出两位小数的开盘价和整数成交量。",
+   samples:[{"in":"buy 2.50 7\nsell 2.00 7\nbuy 3.00 8\ncancel 3","out":"2.50 7"},{"in":"buy 5.00 8\nsell 5.00 3","out":"5.00 3"}],
+   hint:"用分保存价格。按价格升序扫描，在当前价先加入该价卖单，计算成交量后再减去该价买单。累计股数用 64 位。",
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    struct Order { string kind; int price; long long shares; };
+    vector<Order> rows(1);
+    string kind;
+    while(cin>>kind){
+        if(kind=="cancel"){
+            int i; cin>>i; rows[i].shares=0;
+            rows.push_back({"",0,0});
+        }else{
+            string price; long long shares; cin>>price>>shares;
+            price.erase(price.find('.'),1);
+            rows.push_back({kind,stoi(price),shares});
+        }
+    }
+    map<int,pair<long long,long long>> book;
+    long long buyers=0,sellers=0,best=-1;
+    int price=0;
+    for(auto r:rows) if(r.shares){
+        if(r.kind=="buy"){book[r.price].first+=r.shares; buyers+=r.shares;}
+        else book[r.price].second+=r.shares;
+    }
+    for(auto entry:book){
+        sellers+=entry.second.second;
+        auto volume=min(buyers,sellers);
+        if(volume>=best){best=volume;price=entry.first;}
+        buyers-=entry.second.first;
+    }
+    cout<<fixed<<setprecision(2)<<price/100.0<<" "<<max(0LL,best)<<"\n";
+}`},
+  {id:45,cat:"模拟",source:"CCF CSP 201503-3",title:"节日",limit:"1000 ms · 256 MiB",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP201503C",
+   desc:"对每个指定年份，求 a 月内第 b 个星期 c 的日期。星期一至星期日用 1 至 7 表示。采用公历，1850 年元旦是星期二。",
+   input:"一行五个整数 a、b、c、起年、止年。月份 1 至 12，b 为 1 至 5，年份在 1850 至 2050 内。",
+   output:"按年逐行输出 yyyy/mm/dd；当月不存在该日期则输出 none。",
+   samples:[{"in":"2 5 4 2023 2024","out":"none\n2024/02/29"},{"in":"1 1 2 1850 1850","out":"1850/01/01"}],
+   hint:"先定位当月第一个星期 c，再增加 7(b−1) 天。检验是否超出月末，注意整百年只有被 400 整除才是闰年。",
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int a,b,c,start,end; cin>>a>>b>>c>>start>>end;
+    int weekday=2;
+    for(int year=1850;year<=end;year++){
+        int days[]={31,28,31,30,31,30,31,31,30,31,30,31};
+        days[1]+=(year%400==0 || (year%4==0 && year%100!=0));
+        for(int month=1;month<=12;month++){
+            int length=days[month-1];
+            if(year>=start && month==a){
+                int day=1+(c-weekday+7)%7+7*(b-1);
+                if(day>length) cout<<"none\n";
+                else cout<<year<<"/"<<setfill('0')<<setw(2)<<month<<"/"<<setw(2)<<day<<"\n";
+            }
+            weekday=(weekday-1+length)%7+1;
+        }
+    }
+}`},
+  {id:46,cat:"字符串",source:"CCF CSP 201509-3",title:"模板生成系统",limit:"1000 ms · 256 MiB",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP201509C",
+   desc:"把模板中的 {{ name }} 替换成区分大小写的变量值；未定义时替换为空串。替换产生的文字原样保留，不再次扫描。",
+   input:"第一行是模板行数 m 和变量数 n（均为 0 至 100）。先读 m 行模板，再读 n 行变量名和双引号包裹的值。模板每行至多 80 字符，值可含空格。所有标记格式合法。",
+   output:"输出替换后的 m 行，保留原有空格和换行。",
+   samples:[{"in":"2 2\n({{ x }}){{ missing }}\n{{ y }}!\nx \"{{ y }}\"\ny \"two words\"","out":"({{ y }})\ntwo words!"}],
+   hint:"先存下所有模板，再解析变量表。沿原模板寻找标记，只把替换结果写入输出。",
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int m,n; cin>>m>>n;
+    string line; getline(cin,line);
+    vector<string> lines(m);
+    for(auto &s:lines) getline(cin,s);
+    map<string,string> values;
+    while(n--){
+        getline(cin,line);
+        auto pos=line.find(' ');
+        values[line.substr(0,pos)]=line.substr(pos+2,line.size()-pos-3);
+    }
+    for(const auto &s:lines){
+        size_t pos=0,mark;
+        while((mark=s.find("{{ ",pos))!=string::npos){
+            auto end=s.find(" }}",mark+3);
+            cout<<s.substr(pos,mark-pos)<<values[s.substr(mark+3,end-mark-3)];
+            pos=end+3;
+        }
+        cout<<s.substr(pos)<<"\n";
+    }
+}`},
+  {id:47,cat:"图论",source:"CCF CSP 201512-3",title:"画图",limit:"1000 ms · 256 MiB",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP201512C",
+   desc:"画布初始全为点，原点在左下。水平线用 -，竖线用 |，交叉用 +。填充可覆盖原有字母，从起点经上下左右扩散，任何线段都是边界。线段可以覆盖旧填色。",
+   input:"首行是宽、高、操作数（宽高 2 至 100，操作数至多 100）。0 x1 y1 x2 y2 画含两端的水平或竖直线；1 x y c 用字母 c 填充，起点保证不在线上。",
+   output:"先输出最高一行，再逐行向下，每行按从左到右的顺序输出。",
+   samples:[{"in":"3 3 3\n0 1 2 1 0\n0 2 1 0 1\n1 0 2 A","out":"A|.\n-+-\n.|."},{"in":"3 2 2\n1 0 0 A\n1 2 1 B","out":"BBB\nBBB"}],
+   hint:"直接用 y 作行下标，仅在输出时逆序。每轮填色单独记录访问状态，以便穿过以前涂过同色的格子。",
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int w,h,q; cin>>w>>h>>q;
+    vector<string> grid(h,string(w,'.'));
+    while(q--){
+        int op,x,y; cin>>op>>x>>y;
+        if(op==0){
+            int a,b; cin>>a>>b;
+            char pen=x==a?'|':'-';
+            for(int j=min(y,b);j<=max(y,b);j++)
+                for(int i=min(x,a);i<=max(x,a);i++){
+                    char &cell=grid[j][i];
+                    cell=(cell=='+' || (cell==(pen=='|'?'-':'|'))) ? '+' : pen;
+                }
+        }else{
+            char color; cin>>color;
+            queue<pair<int,int>> todo;
+            vector<vector<bool>> seen(h,vector<bool>(w));
+            todo.push({x,y}); seen[y][x]=true;
+            while(!todo.empty()){
+                auto p=todo.front(); todo.pop();
+                grid[p.second][p.first]=color;
+                const int dx[]={1,-1,0,0},dy[]={0,0,1,-1};
+                for(int k=0;k<4;k++){
+                    int i=p.first+dx[k],j=p.second+dy[k];
+                    if(i<0 || i>=w || j<0 || j>=h || seen[j][i]) continue;
+                    if(string("-|+").find(grid[j][i])!=string::npos) continue;
+                    seen[j][i]=true; todo.push({i,j});
+                }
+            }
+        }
+    }
+    for(int y=h-1;y>=0;y--) cout<<grid[y]<<"\n";
+}`},
+  {id:48,cat:"数据结构",source:"CCF CSP 201604-3",title:"路径解析",limit:"1000 ms · 256 MiB",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP201604C",
+   desc:"每条路径独立地相对同一个当前目录解析。以 / 开头时从根开始；忽略空段和单独的点，双点退一级，根处退一级仍在根。空路径表示当前目录。其他名称原样保留。",
+   input:"首行 P（1 至 10），随后一行正规化的当前目录，再读 P 行查询；每条路径至多 1000 字符，查询可为空行。",
+   output:"逐行输出绝对路径。只有根保留末尾的 /。",
+   samples:[{"in":"4\n/lab/run\n../log//a\n\n/../../root/\n.hidden/..","out":"/lab/log/a\n/lab/run\n/root\n/lab/run"}],
+   hint:"用目录名栈记录当前位置，必须整行读取查询，不能漏掉空行。",
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int n; string cwd,line;
+    cin>>n>>cwd; getline(cin,line);
+    while(n--){
+        getline(cin,line);
+        if(line.empty() || line.front()!='/') line=cwd+"/"+line;
+        istringstream parts(line); string name;
+        vector<string> stack;
+        while(getline(parts,name,'/')){
+            if(name.empty() || name==".") continue;
+            if(name==".."){if(!stack.empty()) stack.pop_back();}
+            else stack.push_back(name);
+        }
+        if(stack.empty()) cout<<"/";
+        for(const auto &s:stack) cout<<"/"<<s;
+        cout<<"\n";
+    }
+}`},
+  {id:49,cat:"数据结构",source:"CCF CSP 202206-3",title:"角色授权",limit:"5000 ms · 512 MiB",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202206C",
+   desc:"角色可绑定用户或组。一次请求由用户名、当次所属组、操作、资源种类、资源名组成。只要一个关联角色同时允许这三个资源条件就授权。操作和种类支持 *；名称清单为空表示任意名称。用户和同名组必须区分。",
+   input:"首行 n m q（角色和关联各至多 500，请求至多 5000）。每个角色给名字和操作、种类、名称三张计数加内容的表。每条关联给角色名、对象数、若干 u 用户或 g 组。查询给用户名、组数、组名列表和上述三个条件。每张表至多 400 项。",
+   output:"每个查询输出一行，允许为 1，否则为 0。",
+   samples:[{"in":"2 2 4\nr 1 get 1 file 0\ns 1 * 1 door 1 front\nr 1 g team\ns 1 u team\nalice 1 team get file a\nalice 1 other get file a\nteam 1 other open door front\nteam 1 other open door back","out":"1\n0\n1\n0"}],
+   hint:"每个角色占一位。关联主体按位或，同一请求的操作、种类、名称三个过滤条件按位与，避免把不同角色的权限拼起来。",
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    using Mask=bitset<500>;
+    using Table=unordered_map<string,Mask>;
+    int n,m,q;cin>>n>>m>>q;
+    Table ops,kinds,names,subjects;
+    Mask anyName;
+    unordered_map<string,int> index;
+    auto readList=[](Table &table,int id){
+        int count;cin>>count;
+        for(int j=0;j<count;j++){string key;cin>>key;table[key].set(id);}
+        return count;
+    };
+    for(int i=0;i<n;i++){
+        string role;cin>>role;index[role]=i;
+        readList(ops,i);readList(kinds,i);
+        if(readList(names,i)==0) anyName.set(i);
+    }
+    while(m--){
+        string role;int count;cin>>role>>count;
+        while(count--){string type,key;cin>>type>>key;subjects[type+key].set(index.at(role));}
+    }
+    auto lookup=[](const Table &t,const string &s){
+        auto it=t.find(s);
+        return it==t.end()?Mask():it->second;
+    };
+    while(q--){
+        string user,group,op,kind,name;int cnt;cin>>user>>cnt;
+        Mask allowed=lookup(subjects,"u"+user);
+        while(cnt--){cin>>group;allowed|=lookup(subjects,"g"+group);}
+        cin>>op>>kind>>name;
+        allowed &= lookup(ops,op)|lookup(ops,"*");
+        allowed &= lookup(kinds,kind)|lookup(kinds,"*");
+        allowed &= lookup(names,name)|anyName;
+        cout<<allowed.any()<<"\n";
+    }
+}`},
+  {id:50,cat:"模拟",source:"CCF CSP 202305-3",title:"解压缩",limit:"2000 ms · 512 MiB",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202305C",
+   desc:"先读变长头：每字节低 7 位依次给原长的低位到高位，最高位为 0 时头结束。之后逐块解码。令标签高六位为 h，低两位为类型。类型 0 是原文：h<60 时复制随后 h+1 字节；否则用随后 h−59 字节小端整数加一作长度。类型 1 的长度为 4+((标签>>2)&7)，偏移由标签最高三位和随后一字节拼成。类型 2 的长度为 h+1，偏移为随后两字节小端整数。引用从当前输出末端向前数偏移个字节开始，边读边追加，允许重叠。",
+   input:"第一行给压缩字节数 s。其后每行连续写至多 8 个字节的小写十六进制，除末行外均写满。压缩数据至多 200 万字节，解压后至多 2 MiB。输入合法，无类型 3。",
+   output:"按同样的十六进制格式输出解压结果，每行 8 字节，最后一行可不足 8 字节。",
+   samples:[{"in":"5\n0700410901","out":"41414141414141"},{"in":"8\n06084142430a0300","out":"414243414243"},{"in":"71\n8001f03c00010203\n0405060708090a0b\n0c0d0e0f10111213\n1415161718191a1b\n1c1d1e1f20212223\n2425262728292a2b\n2c2d2e2f30313233\n3435363738393a3b\n3cfe01000a0100","out":"0001020304050607\n08090a0b0c0d0e0f\n1011121314151617\n18191a1b1c1d1e1f\n2021222324252627\n28292a2b2c2d2e2f\n3031323334353637\n38393a3b3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c"}],
+   hint:"游标始终指向下个未读字节。每次追加引用时相对新的末端取数，才能处理偏移小于长度的重复片段。",
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int size; cin>>size;
+    vector<unsigned char> data,out;
+    string line;
+    while(cin>>line) for(size_t i=0;i<line.size();i+=2)
+        data.push_back(stoi(line.substr(i,2),nullptr,16));
+    size_t pos=0;
+    while(data[pos++] & 128) {} // Input guarantees the decoded size is correct.
+    auto little=[&](int bytes){
+        unsigned value=0;
+        for(int i=0;i<bytes;i++) value|=unsigned(data[pos++])<<(8*i);
+        return value;
+    };
+    while(pos<data.size()){
+        int tag=data[pos++], type=tag&3, high=tag>>2;
+        if(type==0){
+            unsigned length=1+(high<60 ? unsigned(high) : little(high-59));
+            out.insert(out.end(),data.begin()+pos,data.begin()+pos+length);
+            pos+=length;
+        }else{
+            int length=type==1 ? 4+(high&7) : high+1;
+            unsigned offset=type==1 ? ((tag>>5)<<8)+little(1) : little(2);
+            while(length--){auto value=out[out.size()-offset];out.push_back(value);}
+        }
+    }
+    cout<<hex<<setfill('0');
+    for(size_t i=0;i<out.size();i++){
+        cout<<setw(2)<<int(out[i]);
+        if(i%8==7 || i+1==out.size()) cout<<"\n";
+    }
+}`},
+  {id:51,cat:"数学",source:"CCF CSP 202403-3",title:"化学方程式配平",limit:"1000 ms · 512 MiB",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202403C",
+   desc:"只判断原子数矩阵的齐次方程组是否有非零解。一种物质对应一列，一种元素对应一行。允许某些物质系数为零，也不限定符号。每个化学式是小写元素名和十进制数量交替出现的字符串，数量 1 也写出，同一物质内元素不重复。",
+   input:"第一行是组数（1 至 10）。每组一行，先给物质数 m，再给 m 个化学式。每组物质数、元素种数均至多 40，每个数量至多 50。",
+   output:"每组输出 Y 或 N，分别表示存在或不存在非零解。",
+   samples:[{"in":"3\n2 fe1 o2\n3 h2 o2 h2o1\n3 he1 he2 na1","out":"N\nY\nY"},{"in":"2\n2 al12o18 al2o3\n2 ab1 a1b1","out":"Y\nN"}],
+   hint:"主元少于物质数时存在自由变量。Python 用整数行变换和公约数约分。C++ 用多个素数下的消元避免浮点误差：所有满阶子式的绝对值至多 (50√40)^40，小于 12 个十亿级素数的乘积。若所有模数下都缺秩，这些子式只能为零。",
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    int cases;cin>>cases;
+    vector<int> primes;
+    for(int p=1000000007;primes.size()<12;p+=2){
+        bool prime=true;
+        for(int d=3;1LL*d*d<=p;d+=2) if(p%d==0){prime=false;break;}
+        if(prime) primes.push_back(p);
+    }
+    while(cases--){
+        int m;cin>>m;
+        map<string,vector<long long>> rows;
+        for(int col=0;col<m;col++){
+            string s;cin>>s;
+            for(size_t i=0;i<s.size();){
+                size_t start=i;
+                while(i<s.size() && islower(s[i])) ++i;
+                string name=s.substr(start,i-start);
+                int count=0;
+                while(i<s.size() && isdigit(s[i])) count=count*10+s[i++]-'0';
+                auto &row=rows[name];row.resize(m);row[col]=count;
+            }
+        }
+        bool independent=false;
+        if(int(rows.size())>=m) for(int p:primes){
+            vector<vector<long long>> a;
+            for(auto &row:rows) a.push_back(row.second);
+            int rank=0;
+            for(int col=0;col<m;col++){
+                int pivot=rank;
+                while(pivot<int(a.size()) && !a[pivot][col]) ++pivot;
+                if(pivot==int(a.size())) break; // Full column rank is impossible modulo p.
+                swap(a[pivot],a[rank]);
+                for(int i=rank+1;i<int(a.size());i++){
+                    long long factor=a[i][col];
+                    if(!factor) continue;
+                    for(int j=col;j<m;j++)
+                        a[i][j]=(a[i][j]*a[rank][col]-factor*a[rank][j])%p;
+                }
+                ++rank;
+            }
+            if(rank==m){independent=true;break;}
+        }
+        cout<<(independent?"N":"Y")<<"\n";
+    }
+}`}
+);
+var BANK_VERSION = "2026.11.19";
+var CATS = ["全部","模拟","基础语法","字符串","枚举","贪心","二分","动态规划","图论","数据结构","数学"];
 
 /* =========================================================
    1b. 基础选择题题库（自编，用于打基础，非 CCF 官方题）
@@ -2547,6 +2902,7 @@ function isChoice(q){ return q && q.opts !== undefined; }
 function matchingQuestions(query, type, status){
   query = query.trim().toLowerCase();
   return BANK.concat(CHOICE).filter(function(q){
+    if(type === "t3" && (isChoice(q) || !q.source.endsWith("-3"))) return false;
     if(type === "program" && isChoice(q)) return false;
     if(type === "choice" && !isChoice(q)) return false;
     if(status === "new" && DB.done.indexOf(q.id) !== -1) return false;

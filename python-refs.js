@@ -345,3 +345,190 @@ def visit(edges, origin):
 accessible = visit(graph,start)
 print(len(accessible-visit(reverse,target)) if target in accessible else "I'm stuck!")`
 };
+
+Object.assign(pythonRefs, {
+  43: String.raw`fmt = input()
+for case in range(1, int(input()) + 1):
+    words = iter(input().split()[1:])
+    found = {}
+    for word in words:
+        if len(word) != 2 or word[0] != "-" or not word[1].islower() or word[1] not in fmt:
+            break
+        needs_arg = fmt.startswith(word[1] + ":", fmt.index(word[1]))
+        arg = next(words, None) if needs_arg else ""
+        if arg is None:
+            break
+        found[word] = arg
+    parts = [f"Case {case}:"]
+    for key in sorted(found):
+        parts.append(key)
+        if found[key]:
+            parts.append(found[key])
+    print(*parts)`,
+  44: String.raw`import sys
+from collections import defaultdict
+orders = [None]
+for line in sys.stdin:
+    fields = line.split()
+    if fields[0] == "cancel":
+        orders[int(fields[1])] = None
+        orders.append(None)
+    else:
+        orders.append((fields[0], int(fields[1].replace(".", "")), int(fields[2])))
+book = defaultdict(lambda: [0, 0])
+buyers = 0
+for row in filter(None, orders):
+    kind, price, shares = row
+    book[price][kind == "sell"] += shares
+    if kind == "buy":
+        buyers += shares
+best, chosen, sellers = -1, 0, 0
+for price, (buy, sell) in sorted(book.items()):
+    sellers += sell
+    volume = min(buyers, sellers)
+    if volume >= best:
+        best, chosen = volume, price
+    buyers -= buy
+print(f"{chosen//100}.{chosen%100:02d}", max(0,best))`,
+  45: String.raw`import calendar
+a, b, c, start, end = map(int, input().split())
+for year in range(start, end+1):
+    first, length = calendar.monthrange(year, a)
+    day = 1 + (c-1-first)%7 + 7*(b-1)
+    print(f"{year}/{a:02d}/{day:02d}" if day <= length else "none")`,
+  46: String.raw`import re
+m,n = map(int,input().split())
+lines = [input() for _ in range(m)]
+values = {}
+for _ in range(n):
+    key, quoted = input().split(" ",1)
+    values[key] = quoted[1:-1]
+for line in lines:
+    print(re.sub(r"\{\{ (\w+) \}\}", lambda m: values.get(m[1], ""), line))`,
+  47: String.raw`w,h,q = map(int,input().split())
+grid = [["."] * w for _ in range(h)]
+for _ in range(q):
+    op,x,y,*rest = input().split()
+    x,y = int(x),int(y)
+    if op == "0":
+        a,b = map(int,rest)
+        pen,other = ("|","-") if a == x else ("-","|")
+        for j in range(min(y,b), max(y,b)+1):
+            for i in range(min(x,a), max(x,a)+1):
+                grid[j][i] = "+" if grid[j][i] in (other,"+") else pen
+    else:
+        todo,seen = [(x,y)],{(x,y)}
+        while todo:
+            i,j = todo.pop()
+            grid[j][i] = rest[0]
+            for a,b in [(i-1,j),(i+1,j),(i,j-1),(i,j+1)]:
+                if 0<=a<w and 0<=b<h and (a,b) not in seen and grid[b][a] not in "-|+":
+                    todo.append((a,b))
+                    seen.add((a,b))
+for row in reversed(grid):
+    print("".join(row))`,
+  48: String.raw`n = int(input())
+cwd = input()
+for _ in range(n):
+    path = input()
+    if not path.startswith("/"):
+        path = cwd + "/" + path
+    stack = []
+    for name in path.split("/"):
+        if name in ("", "."):
+            continue
+        if name == "..":
+            if stack:
+                stack.pop()
+        else:
+            stack.append(name)
+    print("/" + "/".join(stack))`,
+  49: String.raw`from collections import defaultdict
+n,m,q = map(int,input().split())
+ops,kinds,names,subjects = [defaultdict(int) for _ in range(4)]
+roles = {}
+any_name = 0
+for i in range(n):
+    fields = iter(input().split())
+    bit = 1 << i
+    roles[next(fields)] = bit
+    for table in (ops,kinds,names):
+        count = int(next(fields))
+        if table is names and count == 0:
+            any_name |= bit
+        for _ in range(count):
+            table[next(fields)] |= bit
+for _ in range(m):
+    fields = iter(input().split())
+    bit = roles[next(fields)]
+    for _ in range(int(next(fields))):
+        subjects[next(fields),next(fields)] |= bit
+for _ in range(q):
+    user,count,*rest = input().split()
+    allowed = subjects.get(("u",user),0)
+    for group in rest[:int(count)]:
+        allowed |= subjects.get(("g",group),0)
+    op,kind,name = rest[-3:]
+    allowed &= ops.get(op,0) | ops.get("*",0)
+    allowed &= kinds.get(kind,0) | kinds.get("*",0)
+    allowed &= names.get(name,0) | any_name
+    print(int(bool(allowed)))`,
+  50: String.raw`import sys
+size = int(input())
+data = bytes.fromhex(sys.stdin.read())
+pos = 0
+while data[pos] & 128:
+    pos += 1
+pos += 1
+out = bytearray()
+while pos < size:
+    tag = data[pos]
+    pos += 1
+    kind, high = tag & 3, tag >> 2
+    if kind == 0:
+        length = high + 1
+        if high >= 60:
+            width = high - 59
+            length = int.from_bytes(data[pos:pos+width], "little") + 1
+            pos += width
+        out.extend(data[pos:pos+length])
+        pos += length
+    else:
+        if kind == 1:
+            offset = ((tag >> 5) << 8) + data[pos]
+            pos += 1
+            length = 4 + (high & 7)
+        else:
+            offset = int.from_bytes(data[pos:pos+2], "little")
+            pos += 2
+            length = high + 1
+        for _ in range(length):
+            out.append(out[-offset])
+for i in range(0,len(out),8):
+    print(out[i:i+8].hex())`,
+  51: String.raw`import re
+from math import gcd
+from functools import reduce
+for _ in range(int(input())):
+    size,*formulas = input().split()
+    m = int(size)
+    rows = {}
+    for col,formula in enumerate(formulas):
+        for name,count in re.findall(r"([a-z]+)([0-9]+)", formula):
+            rows.setdefault(name, [0]*m)[col] = int(count)
+    a = list(rows.values())
+    rank = 0
+    for col in range(m):
+        pivot = next((i for i in range(rank,len(a)) if a[i][col]), None)
+        if pivot is None:
+            break
+        a[pivot],a[rank] = a[rank],a[pivot]
+        for i in range(rank+1,len(a)):
+            factor = a[i][col]
+            if factor:
+                row = [x*a[rank][col]-y*factor for x,y in zip(a[i],a[rank])]
+                divisor = reduce(gcd,row) or 1
+                a[i] = [x//divisor for x in row]
+        rank += 1
+    print("N" if rank == m else "Y")`
+});
