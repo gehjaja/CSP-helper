@@ -1,5 +1,9 @@
 let stopSampleRun=null;
 function matchesSample(q,actual,expected){
+  if(q.id===46){
+    const lines=text=>text.replace(/\r\n/g,"\n").replace(/\n$/,"");
+    return lines(actual)===lines(expected);
+  }
   const a=actual.trim().split(/\s+/),b=expected.trim().split(/\s+/);
   const tolerance={26:0.0001,28:0.1,32:0.1}[q.id];
   const number=/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;

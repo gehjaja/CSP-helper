@@ -532,3 +532,47 @@ for _ in range(int(input())):
         rank += 1
     print("N" if rank == m else "Y")`
 });
+
+Object.assign(pythonRefs, {
+  52: String.raw`from collections import OrderedDict
+n, count, q = map(int, input().split())
+groups = {}
+for _ in range(q):
+    op, block = map(int, input().split())
+    index = (block // n) % count
+    if index not in groups:
+        groups[index] = OrderedDict()
+    group = groups[index]
+    if block in group:
+        group[block] |= op
+        group.move_to_end(block)
+        continue
+    if len(group) == n:
+        old, dirty = group.popitem(last=False)
+        if dirty:
+            print(1, old)
+    print(0, block)
+    group[block] = op`,
+  53: String.raw`import sys
+sys.setrecursionlimit(6000)
+mod = 10**9 + 7
+defs = {}
+
+def length(expr, memo):
+    total, refs = expr
+    for key in refs:
+        if key not in memo:
+            memo[key] = length(defs.get(key, (0, ())), memo)
+        total += memo[key]
+    return total % mod
+
+for _ in range(int(input())):
+    op, name, *words = input().split()
+    if op == "3":
+        print(length(defs.get(name, (0, ())), {}))
+        continue
+    refs = [word[1:] for word in words if word.startswith("$")]
+    literal = sum(len(word) for word in words if not word.startswith("$"))
+    expr = literal, refs
+    defs[name] = (length(expr, {}), ()) if op == "1" else expr`
+});

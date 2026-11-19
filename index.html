@@ -341,6 +341,8 @@ button:disabled{cursor:default;}
 .bank-filters .field{margin:0;min-width:0;}
 .bank-filters input,.bank-filters select{width:100%;padding:12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--card-2);}
 .bank-result{display:block;text-align:left;width:100%;margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--card);}
+.bank-result .slot-badge,.slot-badge{display:inline-block;background:var(--brand-soft);color:var(--brand-text);padding:2px 6px;border-radius:4px;font-size:12px;margin:0 4px 0 0;vertical-align:middle;}
+.answer-box .a-exp{white-space:pre-wrap;}
 .bank-result strong{display:block;font-size:15px;overflow-wrap:anywhere;}
 .bank-result span{display:block;font-size:12px;color:var(--muted);margin-top:6px;}
 .code-block.wrap{white-space:pre-wrap;overflow-wrap:anywhere;}
@@ -490,7 +492,8 @@ button:disabled{cursor:default;}
     <h2 class="card-title">题库目录</h2>
     <div class="bank-filters">
       <div class="field"><label for="bankQuery">题名、年份、题号或关键词</label><input type="search" id="bankQuery" placeholder="例如 202403、归一化、前缀和"></div>
-      <div class="field"><label for="bankType">题目类型</label><select id="bankType"><option value="all">全部题目</option><option value="program">编程题</option><option value="t3">历届第三题（T3）</option><option value="choice">选择题</option></select></div>
+      <div class="field"><label for="bankType">题目类型</label><select id="bankType"><option value="all">全部题目</option><option value="program">编程题</option><option value="t1">历届第一题（T1）</option><option value="t2">历届第二题（T2）</option><option value="t3">历届第三题（T3）</option><option value="t4">历届第四题（T4）</option><option value="t5">历届第五题（T5）</option><option value="choice">选择题</option></select></div>
+      <div class="field"><label for="bankOrder">题目排序</label><select id="bankOrder"><option value="original">收录顺序</option><option value="slot">题位从低到高，同题位近期优先</option></select></div>
       <div class="field"><label for="bankStatus">练习状态</label><select id="bankStatus"><option value="all">全部状态</option><option value="new">未做过</option><option value="wrong">待复习</option><option value="done">已做过</option><option value="favorite">已收藏</option></select></div>
     </div>
     <p class="about" id="bankResultCount" role="status" aria-live="polite"></p>
@@ -575,6 +578,7 @@ button:disabled{cursor:default;}
   </div>
   <div class="card">
     <h2 class="card-title">编程题进度 <span class="hint">本人记录的 OJ 结果</span></h2>
+    <div id="slotProgress"></div>
     <div id="catProgress"></div>
   </div>
   <div class="card">
@@ -1726,11 +1730,11 @@ BANK.find(function(q){ return q.id === 40; }).samples.push({in:"4\n1 2 2 3",out:
 BANK.push(
   {id:41,cat:"数据结构",source:"CCF CSP 201312-3",title:"最大的矩形",limit:"1 秒 · 256 MB",
    sourceUrl:"https://oj.shumeng.tech/p/CSP201312C",
-   desc:"等宽柱子从左到右紧贴在同一条底线上。选一段连续柱子，用其中最矮一根的高度乘上区间长度，求所有区间能得到的最大面积。",
+   desc:"等宽柱子从左到右紧贴在同一条底线上。选一段连续柱子，用其中最矮一根的高度乘上区间长度，求所有区间能得到的最大面积。\n\n把一排柱子想成贴在方格纸上的剪影。你选定左右端点后，底边宽度等于柱数，上边缘最多只能到这段中最矮柱子的顶端。不能把两个被矮柱隔开的高柱拼起来。端点也可以相同，所以只有一根柱子时，面积就是它的高度。\n\n试着在高度 2、4、4、1、3 的图上画框。中间两根高度 4 可以连成面积 8；把左边高度 2 的柱子也包进来，高度就降到 2，面积变成 6。选满五根只能取高度 1。你要比较的是每个合法长方形的面积，高度最高或跨度最宽都不一定最好。相邻柱子等高时，它们之间没有缝，计算宽度时两端都要算进去。",
    input:"第一行给柱数 n，第二行从左到右给出 n 个正整数高度。公开 OJ 加强版允许 n≤100000，高度≤10⁹。",
    output:"输出一个整数，即最大面积。加强版需要 64 位整数。",
    samples:[{in:"5\n2 4 4 1 3",out:"8"},{in:"1\n7",out:"7"}],
-   hint:"枚举矩形右边界，用递增栈保存尚能延伸的柱子。遇到更矮的柱子时弹栈，弹出后栈顶的下一格是左边界。末尾补高度 0 统一结算，时间 O(n)。",
+   hint:"先写一个小规模解法：固定左端点向右扫，维护当前最小高度，就能枚举所有矩形。再反过来想，若已知限制高度的那根柱子，左右可以一直扩到第一根更矮的柱子之前。递增栈把还没找到右边界的柱子留下。弹出下标时用当前下标作右侧界外位置，用弹出后的栈顶作左侧界外位置；序列末尾放高度 0，才能算到一直延伸到末尾的矩形。",
    code:String.raw`#include <algorithm>
 #include <iostream>
 #include <vector>
@@ -1814,11 +1818,11 @@ int main() {
 BANK.push(
   {id:43,cat:"字符串",source:"CCF CSP 201403-3",title:"命令行选项",limit:"1000 ms · 256 MiB",
    sourceUrl:"https://oj.shumeng.tech/p/CSP201403C",
-   desc:"逐行解析命令名之后的选项。格式串中每个小写字母代表一个选项，后跟冒号表示必带一个参数。参数可以长得像选项。遇到未知选项或普通单词即停止；末尾缺参的选项不计。",
+   desc:"逐行解析命令名之后的选项。格式串中每个小写字母代表一个选项，后跟冒号表示必带一个参数。参数可以长得像选项。遇到未知选项或普通单词即停止；末尾缺参的选项不计。\n\n把每行当成一次独立的程序启动。第一个单词只是程序名，即使它和某个选项名字相同也要跳过。后面的单词有两种读法：当前若正在找选项，就要求它恰好是减号加一个已声明的小写字母；当前若在等参数，就直接消费整个下一个单词。识别状态决定了同一个单词的含义。\n\n例如格式串 ab: 中，a 是开关，b 需要一个值。在 tool -b -a 中，-a 是 b 的值，输出不应再多一个 a 开关。而 tool -a stop -b x 读到 stop 就结束，后面的 -b x 即使合法也不能恢复解析。若先成功读取了 -b old，末尾又只有一个 -b，缺参的这一次不会抹掉 old。每行都要从空的结果表重新开始。",
    input:"格式串长度至多 52；下一行是命令数 N（1 至 20），随后每行一条命令，不超过 256 个字符。单词用空格分隔。",
    output:"每行以 Case i: 开头，按字母顺序列出出现过的选项；重复选项仅保留最后一次有效参数。",
-   samples:[{"in":"ab:\n3\ntool -b -a -a\ntool -b x -b y -b\ntool junk -a","out":"Case 1: -a -b -a\nCase 2: -b y\nCase 3:"}],
-   hint:"游标每次消费一个选项；需要参数时再消费一个完整单词。用有序映射整理输出。",
+   samples:[{"in":"ab:\n3\ntool -b -a -a\ntool -b x -b y -b\ntool junk -a","out":"Case 1: -a -b -a\nCase 2: -b y\nCase 3:"},{"in":"ab:\n2\ntool -b -x -a\ntool -b first -b","out":"Case 1: -a -b -x\nCase 2: -b first"},{"in":"x\n2\nprog -xx -x\nprog -x -z -x","out":"Case 1:\nCase 2: -x"}],
+   hint:"先在纸上给每个词标注“程序名、选项、被消费的参数、停止点”。解析时把选项声明与本行已识别结果分开保存。只有成功取齐该选项所需的全部词，才更新结果表。输出顺序取决于选项字母，不取决于游标见到它们的次序。",
    code:String.raw`#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -1849,11 +1853,11 @@ int main() {
 }`},
   {id:44,cat:"模拟",source:"CCF CSP 201412-3",title:"集合竞价",limit:"1000 ms · 256 MiB",
    sourceUrl:"https://oj.shumeng.tech/p/CSP201412C",
-   desc:"按行记录买单、卖单及撤单。对尚有效的报价 p，将价格至少为 p 的买单股数与价格至多为 p 的卖单股数分别求和，较小者为可成交量。选择成交量最大的报价，并列时选最高价。",
+   desc:"按行记录买单、卖单及撤单。对尚有效的报价 p，将价格至少为 p 的买单股数与价格至多为 p 的卖单股数分别求和，较小者为可成交量。选择成交量最大的报价，并列时选最高价。\n\n所有有效订单要在同一个开盘价下统一撮合，不能把相邻两行当作一次交易。买方报价是愿付的上限，卖方报价是愿收的下限。假设开盘价是 9.00，那么 9.20 的买单可以参加，8.90 的买单不能；8.80 的卖单可以参加，9.10 的卖单不能。恰好等于开盘价的买卖双方都要算。\n\n把所有能买的股数与所有能卖的股数分别相加，短缺的一侧决定这一价格能成交多少。若 2.00 和 2.50 都能成交七股，应选择较高的 2.50。撤销记录引用原始输入行号：它删除那笔订单的贡献，但不会给后续记录重新编号。比较的是总股数，订单的笔数不影响结果。",
    input:"读至文件末尾，至多 5000 行。buy 或 sell 后接两位小数价格及股数；cancel i 撤销第 i 行订单（行号从 1 开始）。单价至多 10000，单笔至多 10⁸ 股。",
    output:"输出两位小数的开盘价和整数成交量。",
    samples:[{"in":"buy 2.50 7\nsell 2.00 7\nbuy 3.00 8\ncancel 3","out":"2.50 7"},{"in":"buy 5.00 8\nsell 5.00 3","out":"5.00 3"}],
-   hint:"用分保存价格。按价格升序扫描，在当前价先加入该价卖单，计算成交量后再减去该价买单。累计股数用 64 位。",
+   hint:"先用很小的订单表手算几组候选价，分别写下可买、可卖、成交三列。观察价格上升时可卖量只增不减，可买量只减不增。于是可按价格聚合同价订单，扫描时先让同价卖单进入，计算成交量，最后让同价买单退出。撤销要在聚合前处理；以整数分作价格键可避免舍入后把同一价格拆成两档。",
    code:String.raw`#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -1889,11 +1893,11 @@ int main() {
 }`},
   {id:45,cat:"模拟",source:"CCF CSP 201503-3",title:"节日",limit:"1000 ms · 256 MiB",
    sourceUrl:"https://oj.shumeng.tech/p/CSP201503C",
-   desc:"对每个指定年份，求 a 月内第 b 个星期 c 的日期。星期一至星期日用 1 至 7 表示。采用公历，1850 年元旦是星期二。",
+   desc:"对每个指定年份，求 a 月内第 b 个星期 c 的日期。星期一至星期日用 1 至 7 表示。采用公历，1850 年元旦是星期二。\n\n节日由月内第几次出现某个星期几来定义，不能把每月第一周固定看作从星期一开始。月初即使只剩一两天，这几天出现的目标星期仍是本月第一次。计算的每一年都独立输出：某年不存在第五个目标星期，不影响下一年继续计算。\n\n例如 2024 年 2 月 1 日是星期四，之后 8、15、22、29 日也都是星期四，所以这一年的二月有第五个星期四。若第一天是星期五，就得先等六天到第一个星期四，再从那天往后数四周。越过月末的日期不能顺延到三月。世纪年份也要按公历判断：1900 年二月只有 28 天，2000 年二月有 29 天。",
    input:"一行五个整数 a、b、c、起年、止年。月份 1 至 12，b 为 1 至 5，年份在 1850 至 2050 内。",
    output:"按年逐行输出 yyyy/mm/dd；当月不存在该日期则输出 none。",
    samples:[{"in":"2 5 4 2023 2024","out":"none\n2024/02/29"},{"in":"1 1 2 1850 1850","out":"1850/01/01"}],
-   hint:"先定位当月第一个星期 c，再增加 7(b−1) 天。检验是否超出月末，注意整百年只有被 400 整除才是闰年。",
+   hint:"只需找一次锚点：已知某月 1 日的星期数后，向前走 0 至 6 天就能到第一个指定星期，再加上整周偏移。用月长把这个锚点传给下个月，而不必每天枚举。输出前先和该月天数比较；注意输入的星期一从 1 开始，日期库可能从 0 开始。",
    code:String.raw`#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -1917,11 +1921,11 @@ int main() {
 }`},
   {id:46,cat:"字符串",source:"CCF CSP 201509-3",title:"模板生成系统",limit:"1000 ms · 256 MiB",
    sourceUrl:"https://oj.shumeng.tech/p/CSP201509C",
-   desc:"把模板中的 {{ name }} 替换成区分大小写的变量值；未定义时替换为空串。替换产生的文字原样保留，不再次扫描。",
+   desc:"把模板中的 {{ name }} 替换成区分大小写的变量值；未定义时替换为空串。替换产生的文字原样保留，不再次扫描。\n\n模板有两层数据：原始文本，以及这一次渲染才提供的变量表。模板里普通字母即使刚好拼成变量名也只是文本；只有成对定界符包围、空格位置符合格式的标记才触发查找。名字大小写分别查找，已定义为空串和根本未定义的变量在输出时效果相同。\n\n例如一行是 [{{ x }}][{{ y }}]，x 的值恰好是 {{ y }}，y 的值是 two words。输出要保留第一对方括号里的 {{ y }}，只把原文中的第二个标记换成 two words。行首缩进、两个相邻标记之间的字符以及标记后剩余的整段原文都属于输出。变量定义里的外层引号不输出，引号内的空格则属于值。",
    input:"第一行是模板行数 m 和变量数 n（均为 0 至 100）。先读 m 行模板，再读 n 行变量名和双引号包裹的值。模板每行至多 80 字符，值可含空格。所有标记格式合法。",
    output:"输出替换后的 m 行，保留原有空格和换行。",
-   samples:[{"in":"2 2\n({{ x }}){{ missing }}\n{{ y }}!\nx \"{{ y }}\"\ny \"two words\"","out":"({{ y }})\ntwo words!"}],
-   hint:"先存下所有模板，再解析变量表。沿原模板寻找标记，只把替换结果写入输出。",
+   samples:[{"in":"2 2\n({{ x }}){{ missing }}\n{{ y }}!\nx \"{{ y }}\"\ny \"two words\"","out":"({{ y }})\ntwo words!"},{"in":"1 1\n[{{ NAME }}|{{ name }}]\nname \"v\"","out":"[|v]"},{"in":"1 2\n{{ a }}{{ b }}!\na \"{{ b }}\"\nb \"two  spaces\"","out":"{{ b }}two  spaces!"}],
+   hint:"先考虑只有一个标记的行：输出左边普通文本、一次查表的值和右边普通文本。有多个标记时重复前两步，把读指针放在原文右括号之后。读指针永远不进入输出缓冲区，自然不会递归替换。不能对整行依次按变量名做全局替换，否则变量表的顺序会改变结果。",
    code:String.raw`#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -1949,11 +1953,11 @@ int main() {
 }`},
   {id:47,cat:"图论",source:"CCF CSP 201512-3",title:"画图",limit:"1000 ms · 256 MiB",
    sourceUrl:"https://oj.shumeng.tech/p/CSP201512C",
-   desc:"画布初始全为点，原点在左下。水平线用 -，竖线用 |，交叉用 +。填充可覆盖原有字母，从起点经上下左右扩散，任何线段都是边界。线段可以覆盖旧填色。",
+   desc:"画布初始全为点，原点在左下。水平线用 -，竖线用 |，交叉用 +。填充可覆盖原有字母，从起点经上下左右扩散，任何线段都是边界。线段可以覆盖旧填色。\n\n画布格子有两类状态：挡住填充的线段，以及可以被填充的区域。点和以前填入的字母都属于区域，字母不同也不会形成边界。画线必须包含两个端点，从右往左或从上往下给端点，画出的线都相同；同方向重画仍是一条线，横竖相遇才出现加号，已有的加号继续保留。\n\n想象先把整幅图涂成 A，再自上而下画一道贯穿画布的竖线，最后在左侧填 B。旧的 A 不会阻碍油漆，竖线才会，因此右侧仍是 A。若竖线少画了一个端点，填充就可能从缺口绕过去。只能通过共边的两格移动，不能沿对角线穿过线段。输入 y 越大越靠上，打印时最先输出最高一行。",
    input:"首行是宽、高、操作数（宽高 2 至 100，操作数至多 100）。0 x1 y1 x2 y2 画含两端的水平或竖直线；1 x y c 用字母 c 填充，起点保证不在线上。",
    output:"先输出最高一行，再逐行向下，每行按从左到右的顺序输出。",
    samples:[{"in":"3 3 3\n0 1 2 1 0\n0 2 1 0 1\n1 0 2 A","out":"A|.\n-+-\n.|."},{"in":"3 2 2\n1 0 0 A\n1 2 1 B","out":"BBB\nBBB"}],
-   hint:"直接用 y 作行下标，仅在输出时逆序。每轮填色单独记录访问状态，以便穿过以前涂过同色的格子。",
+   hint:"把每个能涂色的格子当作图的顶点，共边就相连。一次填充就是从起点遍历所在连通块，不能只找旧颜色相同的格子。每次填色单独标记访问过的位置；已经是目标颜色的格子也可能是通往另一片区域的必经之路。将绘线和填充按输入顺序立即执行，最后统一反转行序输出。",
    code:String.raw`#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -1993,11 +1997,11 @@ int main() {
 }`},
   {id:48,cat:"数据结构",source:"CCF CSP 201604-3",title:"路径解析",limit:"1000 ms · 256 MiB",
    sourceUrl:"https://oj.shumeng.tech/p/CSP201604C",
-   desc:"每条路径独立地相对同一个当前目录解析。以 / 开头时从根开始；忽略空段和单独的点，双点退一级，根处退一级仍在根。空路径表示当前目录。其他名称原样保留。",
+   desc:"每条路径独立地相对同一个当前目录解析。以 / 开头时从根开始；忽略空段和单独的点，双点退一级，根处退一级仍在根。空路径表示当前目录。其他名称原样保留。\n\n这里的路径解析只处理名字序列，无须访问真实文件系统，也不用判断某个目录是否存在。绝对路径与当前目录无关；相对路径要先站到给定当前目录，再按从左到右的顺序走。每一行查询做完之后，下一行仍然从题目给定的当前目录出发。\n\n若当前目录是 /course/week，查询 ../notes//./a 得到 /course/notes/a。紧接着查询 b 则得到 /course/week/b，不会接在上一条结果后面。根的上层仍是根；/// 和 /../../ 都得到 /。只有整个分段恰好为 . 或 .. 才有特殊意义，.config、a..b 等都是普通名称。空行本身是一条查询，不可在读入时略掉。正规结果除了根以外没有末尾斜杠。",
    input:"首行 P（1 至 10），随后一行正规化的当前目录，再读 P 行查询；每条路径至多 1000 字符，查询可为空行。",
    output:"逐行输出绝对路径。只有根保留末尾的 /。",
-   samples:[{"in":"4\n/lab/run\n../log//a\n\n/../../root/\n.hidden/..","out":"/lab/log/a\n/lab/run\n/root\n/lab/run"}],
-   hint:"用目录名栈记录当前位置，必须整行读取查询，不能漏掉空行。",
+   samples:[{"in":"4\n/lab/run\n../log//a\n\n/../../root/\n.hidden/..","out":"/lab/log/a\n/lab/run\n/root\n/lab/run"},{"in":"3\n/\n../../a..b\n///\n../.config","out":"/a..b\n/\n/.config"},{"in":"3\n/a/b\n../x\n./y\n.","out":"/a/x\n/a/b/y\n/a/b"}],
+   hint:"把当前已解析的绝对路径写成名字栈。读普通段就入栈，双点就弹出一段，空栈时遇到双点什么都不做。这样输出时只需用斜杠连接栈内元素。先写三条测试区分空输入、空分段和单点：它们的字符不同，但都不能向结果中引入新目录。",
    code:String.raw`#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -2022,11 +2026,11 @@ int main() {
 }`},
   {id:49,cat:"数据结构",source:"CCF CSP 202206-3",title:"角色授权",limit:"5000 ms · 512 MiB",
    sourceUrl:"https://oj.shumeng.tech/p/CSP202206C",
-   desc:"角色可绑定用户或组。一次请求由用户名、当次所属组、操作、资源种类、资源名组成。只要一个关联角色同时允许这三个资源条件就授权。操作和种类支持 *；名称清单为空表示任意名称。用户和同名组必须区分。",
+   desc:"角色可绑定用户或组。一次请求由用户名、当次所属组、操作、资源种类、资源名组成。只要一个关联角色同时允许这三个资源条件就授权。操作和种类支持 *；名称清单为空表示任意名称。用户和同名组必须区分。\n\n判断对象是一条具体的请求。用户既能通过自己的名字得到角色，也能通过这次请求中列出的任一用户组得到角色。用户 alice 和组 alice 是两个不同主体；同一用户在下一次请求中的组也可能改变。没有匹配的角色时拒绝请求；多条关联指向同一个角色时，不能覆盖掉先前已授权的主体。\n\n对某个候选角色，要分别检查操作、资源种类、资源名称。前两项允许列出 * 来匹配任意值；最后一项以空清单表示不限名称。例如角色甲能 read file report，角色乙能 write file draft，同时拥有它们的人可以读 report 或写 draft，却不能凭这两个角色写 report。只有同一个角色同时满足全部条件才行；找到这样的一个就可以结束本次查询。",
    input:"首行 n m q（角色和关联各至多 500，请求至多 5000）。每个角色给名字和操作、种类、名称三张计数加内容的表。每条关联给角色名、对象数、若干 u 用户或 g 组。查询给用户名、组数、组名列表和上述三个条件。每张表至多 400 项。",
    output:"每个查询输出一行，允许为 1，否则为 0。",
-   samples:[{"in":"2 2 4\nr 1 get 1 file 0\ns 1 * 1 door 1 front\nr 1 g team\ns 1 u team\nalice 1 team get file a\nalice 1 other get file a\nteam 1 other open door front\nteam 1 other open door back","out":"1\n0\n1\n0"}],
-   hint:"每个角色占一位。关联主体按位或，同一请求的操作、种类、名称三个过滤条件按位与，避免把不同角色的权限拼起来。",
+   samples:[{"in":"2 2 4\nr 1 get 1 file 0\ns 1 * 1 door 1 front\nr 1 g team\ns 1 u team\nalice 1 team get file a\nalice 1 other get file a\nteam 1 other open door front\nteam 1 other open door back","out":"1\n0\n1\n0"},{"in":"2 2 2\nreader 1 read 1 file 1 report\nwriter 1 write 1 file 1 draft\nreader 1 u li\nwriter 1 u li\nli 1 g write file report\nli 1 g write file draft","out":"0\n1"},{"in":"1 2 3\nall 1 * 1 * 0\nall 1 u cat\nall 1 g dog\ncat 1 x open door a\nsam 1 dog open door b\nsam 1 cat open door b","out":"1\n1\n0"}],
+   hint:"先从逐个试角色的解法出发：哪几个角色属于本次主体？哪些允许当前操作、当前种类和当前名称？把每个答案看成一个角色集合，问题就变成四个集合的交集是否为空。用户和组的授权集合先取并集，每个资源条件先加入通配角色，然后才做交集。位集的一位代表一个角色，避免在数千次请求中反复扫描长清单。",
    code:String.raw`#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -2069,11 +2073,11 @@ int main() {
 }`},
   {id:50,cat:"模拟",source:"CCF CSP 202305-3",title:"解压缩",limit:"2000 ms · 512 MiB",
    sourceUrl:"https://oj.shumeng.tech/p/CSP202305C",
-   desc:"先读变长头：每字节低 7 位依次给原长的低位到高位，最高位为 0 时头结束。之后逐块解码。令标签高六位为 h，低两位为类型。类型 0 是原文：h<60 时复制随后 h+1 字节；否则用随后 h−59 字节小端整数加一作长度。类型 1 的长度为 4+((标签>>2)&7)，偏移由标签最高三位和随后一字节拼成。类型 2 的长度为 h+1，偏移为随后两字节小端整数。引用从当前输出末端向前数偏移个字节开始，边读边追加，允许重叠。",
+   desc:"先读变长头：每字节低 7 位依次给原长的低位到高位，最高位为 0 时头结束。之后逐块解码。令标签高六位为 h，低两位为类型。类型 0 是原文：h<60 时复制随后 h+1 字节；否则用随后 h−59 字节小端整数加一作长度。类型 1 的长度为 4+((标签>>2)&7)，偏移由标签最高三位和随后一字节拼成。类型 2 的长度为 h+1，偏移为随后两字节小端整数。引用从当前输出末端向前数偏移个字节开始，边读边追加，允许重叠。\n\n把输入看成一条连续的字节带，每两个十六进制字符表示一字节，输入换行只是排版。开头的变长整数声明最终输出的长度：例如 80 01 的低七位依次是 0、1，值为 0＋1×128＝128。头部最后一字节的最高位为 0，再下一字节才是第一块的标签。\n\n类型 1 的标签按位排成【偏移高 3 位｜长度码 3 位｜01】。所以 (tag >> 2) & 7 只取中间三位，表示长度超过 4 的那部分；tag >> 5 才取偏移高三位。以 2d 1a 为例，2d 是二进制 00101101，长度为 4＋3＝7，偏移为 1×256＋26＝282。类型 2 则把偏移全部放在标签后两字节，低位字节在前。类型 3 不出现在合法输入中。\n\n解码的引用可以读到刚刚输出的数据。若已有 AB，要再复制偏移 2、长度 5 的片段，依次追加 A、B、A、B、A，最终是 ABABABA。不能在复制前截取一次原缓冲区然后只追加那两字节。",
    input:"第一行给压缩字节数 s。其后每行连续写至多 8 个字节的小写十六进制，除末行外均写满。压缩数据至多 200 万字节，解压后至多 2 MiB。输入合法，无类型 3。",
    output:"按同样的十六进制格式输出解压结果，每行 8 字节，最后一行可不足 8 字节。",
    samples:[{"in":"5\n0700410901","out":"41414141414141"},{"in":"8\n06084142430a0300","out":"414243414243"},{"in":"71\n8001f03c00010203\n0405060708090a0b\n0c0d0e0f10111213\n1415161718191a1b\n1c1d1e1f20212223\n2425262728292a2b\n2c2d2e2f30313233\n3435363738393a3b\n3cfe01000a0100","out":"0001020304050607\n08090a0b0c0d0e0f\n1011121314151617\n18191a1b1c1d1e1f\n2021222324252627\n28292a2b2c2d2e2f\n3031323334353637\n38393a3b3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c\n3c3c3c3c3c3c3c3c"}],
-   hint:"游标始终指向下个未读字节。每次追加引用时相对新的末端取数，才能处理偏移小于长度的重复片段。",
+   hint:"先在纸上分出三样东西：压缩数据、指向下一未读字节的游标、已经生成的原文。先只写字面量，再写短引用，最后加入长字面量和双字节偏移。每处理一块都问两个问题：从输入消费了几字节？输出增加了几字节？这两个数通常不同。用末端减偏移取下一字节并立即追加，能自然处理重叠；最后用头部长度交叉检查输出，再按每行八字节排版。",
    code:String.raw`#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -2111,11 +2115,11 @@ int main() {
 }`},
   {id:51,cat:"数学",source:"CCF CSP 202403-3",title:"化学方程式配平",limit:"1000 ms · 512 MiB",
    sourceUrl:"https://oj.shumeng.tech/p/CSP202403C",
-   desc:"只判断原子数矩阵的齐次方程组是否有非零解。一种物质对应一列，一种元素对应一行。允许某些物质系数为零，也不限定符号。每个化学式是小写元素名和十进制数量交替出现的字符串，数量 1 也写出，同一物质内元素不重复。",
+   desc:"只判断原子数矩阵的齐次方程组是否有非零解。一种物质对应一列，一种元素对应一行。允许某些物质系数为零，也不限定符号。每个化学式是小写元素名和十进制数量交替出现的字符串，数量 1 也写出，同一物质内元素不重复。\n\n输入已经把化学式简化，每个连续的小写字母串是一个元素名，紧随的完整数字串是数量。例如 al12o18 中有 12 个 al 和 18 个 o，不能按单个字母或单个数字切分。只要求判断系数是否存在，无需输出配平方程，也无需事先猜哪种物质在等号哪侧。\n\n以 h2、o2、h2o1 为例，若三个系数为 x、y、z，氢元素给出 2x＋2z＝0，氧元素给出 2y＋z＝0。取 x＝2、y＝1、z＝−2 就满足两式；负号相当于把物质移到另一边。零向量永远满足方程，但不算成功，因为它表示所有物质都没有参与。题目允许某个系数为零，只要求至少一个不为零；因此给已经能配平的一组物质再添加一种无关物质，仍可能输出 Y。",
    input:"第一行是组数（1 至 10）。每组一行，先给物质数 m，再给 m 个化学式。每组物质数、元素种数均至多 40，每个数量至多 50。",
    output:"每组输出 Y 或 N，分别表示存在或不存在非零解。",
    samples:[{"in":"3\n2 fe1 o2\n3 h2 o2 h2o1\n3 he1 he2 na1","out":"N\nY\nY"},{"in":"2\n2 al12o18 al2o3\n2 ab1 a1b1","out":"Y\nN"}],
-   hint:"主元少于物质数时存在自由变量。Python 用整数行变换和公约数约分。C++ 用多个素数下的消元避免浮点误差：所有满阶子式的绝对值至多 (50√40)^40，小于 12 个十亿级素数的乘积。若所有模数下都缺秩，这些子式只能为零。",
+   hint:"先给每种物质分配一列，再为出现过的每个元素建一行，没出现的地方填零。问自己：当列与列线性相关时，是否恰能用一组不全为零的系数抵消所有行？这就是判断秩是否小于列数。对手算的小矩阵先做消元，观察自由变量，再对照参考代码里的行交换和消元；数值实现还要避免把舍入误差当成非零主元。",
    code:String.raw`#include <bits/stdc++.h>
 using namespace std;
 int main() {
@@ -2166,7 +2170,83 @@ int main() {
     }
 }`}
 );
-var BANK_VERSION = "2026.11.19";
+BANK.push(
+  {id:52,cat:"数据结构",source:"CCF CSP 202412-3",title:"缓存模拟",limit:"以来源题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202412C",
+   desc:"处理器发出的是对缓存的读写请求，你要记录的则是实际到达内存的读写。开始时每个组都是空的。每组最多保存 n 个块，编号为 a 的块只能放到组 (a 整除 n) 对 N 取余的位置。两个块即使编号不同，也可能争用同一组；其他组还有空位并不能解决这一组的冲突。\n\n无论请求读还是写，如果块已经在组内，就把它记为最近使用，不产生内存操作。写命中还要把它标为已修改；后来的读命中不会清除这个标记。若块不在缓存，先确认是否需要腾出位置。组满则淘汰本组最久没有被访问的块：若它曾被修改，先输出一次对旧块的内存写；然后输出对新块的内存读，将它装入并执行原请求。新块是否标为已修改，取决于本次请求是否为写。\n\n例如单组容量为一，先写块 3，再读块 8：第一次写请求只产生读入 3；第二次访问才会先写回 3，再读入 8。所有请求结束时，题目没有要求把仍在缓存的脏块写回。",
+   input:"首行 n、N、q 是每组路数、组数和请求数；随后 q 行给操作（0 读、1 写）和块号 a。n、N 均为 2 的幂，nN≤65536，q≤100000，0≤a<2³⁰。",
+   output:"按实际发生顺序逐行输出内存操作与块号；一次请求可能产生零、一或两行。",
+   hint:"先模拟只有一个缓存行的情形，分清“写入缓存”和“写回内存”。再把每一组维护成一条按最近使用时间排列的队列，命中时移动到队尾，淘汰时取队首。用哈希表定位块在队列中的位置，避免每次从头寻找。",
+   samples:[{"in":"1 1 3\n1 3\n0 3\n0 8","out":"0 3\n1 3\n0 8"},{"in":"2 2 6\n0 0\n1 1\n0 2\n0 0\n0 4\n1 4","out":"0 0\n0 1\n0 2\n1 1\n0 4"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main(){
+    ios::sync_with_stdio(false); cin.tie(nullptr);
+    int n, groups, q; cin >> n >> groups >> q;
+    using Entry = pair<int,bool>;
+    vector<list<Entry>> queues(groups);
+    unordered_map<int,list<Entry>::iterator> position;
+    while(q--){
+        int op, block; cin >> op >> block;
+        auto &group = queues[(block/n)%groups];
+        auto it = position.find(block);
+        if(it != position.end()){
+            if(op) it->second->second = true;
+            group.splice(group.end(), group, it->second);
+            continue;
+        }
+        if(int(group.size()) == n){
+            auto old = group.front();
+            if(old.second) cout << 1 << " " << old.first << "\n";
+            position.erase(old.first);
+            group.pop_front();
+        }
+        cout << 0 << " " << block << "\n";
+        group.emplace_back(block, op == 1);
+        position[block] = prev(group.end());
+    }
+}`},
+  {id:53,cat:"图论",source:"CCF CSP 202503-3",title:"模板展开",limit:"以来源题面为准",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202503C",
+   desc:"解释一段小型模板程序。表达式里的普通单词就是字面文字，带 $ 前缀的单词则表示取同名变量当前的值。把所有操作数依次拼起来，中间不插入空格。变量在第一次赋值前等于空串，变量名和字面量都由小写字母或数字组成。\n\n类型 1 是立即赋值：先按当前状态算完右侧，再替换左侧原来的定义。类型 2 是延迟赋值：保存右侧表达式，以后每次用到左侧变量都按那时的状态重新计算。比如先把 a 设为 hi，令 b 延迟等于 $a $a，再把 c 立即设为 $b。此时 b 和 c 长度都是 4；将 a 改为 x 后，b 的长度变成 2，c 的长度仍是 4。立即赋值的右边可以读取左边原来的值，不能先清空旧值。题目保证求值过程中没有循环依赖。\n\n类型 3 只询问变量展开后的长度，输出它除以 1000000007 的余数。表达式中两次引用同一变量就要计入两次；一串反复翻倍的表达式即使只占很少输入，也可能展开成极长的文本。",
+   input:"第一行给语句数 n≤2000，随后每行一条语句。1/2 后接变量名和至少一个操作数；3 后仅接变量名。变量至多 1000 个，变量名和字面量长度至多 50。",
+   output:"每遇到一次类型 3 就输出一行长度模 1000000007 的结果。",
+   hint:"从输出倒推：拼接只影响长度的加法，无须构造字符串。立即赋值把求得的长度存成常数；延迟赋值保存常数部分与依赖变量。一次查询中，相同变量只展开一次并暂存结果。下一次赋值可能改变依赖链，不能把旧查询的结果无条件沿用。",
+   samples:[{"in":"7\n1 a hi\n2 b $a $a\n1 c $b\n1 a x\n3 b\n3 c\n3 missing","out":"2\n4\n0"},{"in":"5\n2 d $k z\n3 d\n1 k ab\n1 k $k $d\n3 d","out":"1\n6"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main(){
+    ios::sync_with_stdio(false); cin.tie(nullptr);
+    const int mod = 1000000007;
+    struct Expr { int literal = 0; vector<string> refs; };
+    map<string,Expr> defs;
+    int n; cin >> n;
+    string line; getline(cin,line);
+    while(n--){
+        getline(cin,line);
+        istringstream in(line);
+        int op; string name,word; in >> op >> name;
+        map<string,int> memo;
+        function<int(const Expr&)> length = [&](const Expr &expr){
+            int sum = expr.literal;
+            for(const string &ref : expr.refs){
+                if(!memo.count(ref)) memo[ref] = length(defs[ref]);
+                sum = (sum + memo.at(ref)) % mod;
+            }
+            return sum;
+        };
+        if(op == 3){cout << length(defs[name]) << "\n"; continue;}
+        Expr next;
+        while(in >> word){
+            if(word[0]=='$') next.refs.push_back(word.substr(1));
+            else next.literal = (next.literal + int(word.size())) % mod;
+        }
+        if(op == 1){ next.literal = length(next); next.refs.clear(); }
+        defs[name] = move(next);
+    }
+}`}
+);
+var BANK_VERSION = "2026.11.19.2";
 var CATS = ["全部","模拟","基础语法","字符串","枚举","贪心","二分","动态规划","图论","数据结构","数学"];
 
 /* =========================================================
@@ -2519,6 +2599,7 @@ function restoreProgress(){
   document.getElementById("bankQuery").value = "";
   document.getElementById("bankType").value = "all";
   document.getElementById("bankStatus").value = "all";
+  document.getElementById("bankOrder").value="original";
 }
 
 function newId(){ return crypto.randomUUID(); }
@@ -2899,10 +2980,15 @@ function byId(id){
 /* 有 opts 字段的是选择题，否则是编程真题 */
 function isChoice(q){ return q && q.opts !== undefined; }
 
+function questionSlot(q){return isChoice(q)?0:Number(q.source.slice(-1));}
+function slotBadge(q){
+  const n=questionSlot(q);
+  return '<span class="slot-badge">'+(n?'T'+n+' · '+["","基础","基础","进阶","挑战","挑战"][n]:'基础选择')+'</span> ';
+}
 function matchingQuestions(query, type, status){
   query = query.trim().toLowerCase();
   return BANK.concat(CHOICE).filter(function(q){
-    if(type === "t3" && (isChoice(q) || !q.source.endsWith("-3"))) return false;
+    if(/^t[1-5]$/.test(type) && questionSlot(q)!==Number(type[1])) return false;
     if(type === "program" && isChoice(q)) return false;
     if(type === "choice" && !isChoice(q)) return false;
     if(status === "new" && DB.done.indexOf(q.id) !== -1) return false;
@@ -2917,10 +3003,11 @@ function matchingQuestions(query, type, status){
 function renderBank(){
   var list = matchingQuestions(document.getElementById("bankQuery").value,
     document.getElementById("bankType").value, document.getElementById("bankStatus").value);
+  if(document.getElementById("bankOrder").value==="slot") list.sort((a,b)=>(questionSlot(a)||6)-(questionSlot(b)||6) || (b.source||"").localeCompare(a.source||""));
   document.getElementById("bankResultCount").textContent = "找到 " + list.length + " / " + (BANK.length + CHOICE.length) + " 题，点击题目开始练习。";
   document.getElementById("bankResults").innerHTML = list.length ? list.map(function(q){
     var status = DB.wrong.indexOf(q.id) !== -1 ? "待复习" : (DB.done.indexOf(q.id) !== -1 ? "已做过" : "未做过");
-    return '<button class="bank-result" data-question="' + q.id + '"><strong>' + esc(q.title || q.q) +
+    return '<button class="bank-result" data-question="' + q.id + '"><strong>' + slotBadge(q) + esc(q.title || q.q) +
       '</strong><span>' + esc((isChoice(q) ? "选择题 " + q.id : q.source) + " · " + q.cat + " · " + status) + '</span></button>';
   }).join("") : '<div class="empty">没有匹配的题目，请尝试其他关键词或放宽筛选条件。</div>';
 }
@@ -3182,7 +3269,7 @@ function renderPractice(){
     '<div class="card">' +
       '<div class="q-head">' +
         '<span class="q-tag">' + q.cat + '</span>' +
-        '<span>' + q.source + ' · 第 ' + (practice.idx + 1) + ' / ' + practice.list.length + ' 题</span>' +
+        '<span>' + slotBadge(q) + q.source + ' · 第 ' + (practice.idx + 1) + ' / ' + practice.list.length + ' 题</span>' +
       '</div>' +
       '<h3 class="prob-title">' + esc(q.title) + '</h3>' +
       favoriteHtml(q) +
@@ -3483,7 +3570,7 @@ function renderWrong(){
     return '<div class="wrong-item">' +
              '<div class="w-top"><span class="q-tag">' + q.cat + '</span>' +
              '<span style="font-size:12px;color:var(--muted)">' + meta + '</span></div>' +
-             '<div class="w-q">' + esc(text) + '</div>' +
+             '<div class="w-q">' + slotBadge(q) + esc(text) + '</div>' +
              '<div class="w-act">' +
                '<button class="w-redo" data-redo="' + id + '">重做这道</button>' +
                '<button data-master="' + id + '">已掌握</button>' +
@@ -3565,6 +3652,11 @@ function renderStats(){
   }).join("");
 
   // 各考点掌握度
+  document.getElementById("slotProgress").innerHTML=[1,2,3,4,5].map(n=>{
+    const group=BANK.filter(q=>questionSlot(q)===n);
+    const ac=group.filter(q=>DB.work[q.id]?.verdict==="accepted").length;
+    return '<div class="goal-line"><span>T'+n+'</span><b>登记 OJ 通过 '+ac+' / '+group.length+' 题</b></div>';
+  }).join("");
   document.getElementById("catProgress").innerHTML = progressHtml(BANK, CATS.slice(1));
   document.getElementById("choiceProgress").innerHTML = progressHtml(CHOICE, CHOICE_CATS.slice(1));
 
@@ -3657,6 +3749,7 @@ async function init(){
     document.getElementById(id).addEventListener(id === "historyQuery" ? "input" : "change", function(){ historyPage = 0; renderHistory(); });
   });
   document.getElementById("bankQuery").oninput = renderBank;
+  document.getElementById("bankOrder").onchange=renderBank;
   document.getElementById("bankType").onchange = renderBank;
   document.getElementById("bankStatus").onchange = renderBank;
   document.getElementById("bankResults").onclick = function(e){
