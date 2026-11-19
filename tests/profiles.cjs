@@ -261,6 +261,30 @@ async function importData(page,data) {
     assert.equal(new Set(state.db.dailyPlan.ids).size,3);assert.ok(state.db.dailyPlan.ids.every(id=>!previous.includes(id)));
     await context.close();
   });
+  await check('daily replacements rotate across reload, profiles and pool exhaustion',async()=>{
+    const {page,context}=await setup(), firstProfile=(await read(page)).id;
+    const initial=(await read(page)).db.dailyPlan.ids;
+    const seen=new Set(initial);
+    let previous=initial;
+    for(let batch=1;batch<=38;batch++){
+      if(batch===4){await page.reload();await ready(page);}
+      if(batch===8){
+        await create(page,'独立轮换');await go(page,'home');
+        assert.deepEqual((await read(page)).db.dailyPlan.ids,initial);
+        await select(page,firstProfile);await go(page,'home');
+      }
+      await page.click('#replaceDaily');
+      const ids=(await read(page)).db.dailyPlan.ids;
+      assert.equal(new Set(ids).size,3);
+      assert.ok(ids.every(id=>!previous.includes(id)));
+      assert.equal(ids.filter(id=>!seen.has(id)).length,Math.min(3,109-seen.size));
+      ids.forEach(id=>seen.add(id));previous=ids;
+    }
+    assert.equal(seen.size,109);
+    await page.evaluate(()=>{DB.dailyPlan.day=dkey(shiftDay(new Date(),-1));go('home');});
+    assert.deepEqual((await read(page)).db.dailyPlan.ids,initial);
+    await context.close();
+  });
   await check('daily mistakes cool down across dates, legacy totals qualify for spaced review',async()=>{
     const {page,context}=await setup();
     const results=await page.evaluate(()=>{
