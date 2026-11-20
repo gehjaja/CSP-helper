@@ -31,6 +31,11 @@ const server = http.createServer((req,res) => {
     res.end(frame.replaceAll('https://cdn.jsdelivr.net/pyodide/v0.27.7/full/',base+'/runtime/').replaceAll('https://cdn.jsdelivr.net',base));
     return;
   }
+  if(req.url==='/downloads/CSP-helper-v1.0.apk'){
+    res.setHeader('Content-Type','application/vnd.android.package-archive');
+    fs.createReadStream(path.join(root,'downloads','CSP-helper-v1.0.apk')).pipe(res);
+    return;
+  }
   if(req.url==='/index.html'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html);return;}
   const assets=['sw.js','icon-192.png','icon-512.png','manifest.webmanifest','python-refs.js','paper.js','review.js','runner.js','sample-frame.html'];
   if(assets.includes(req.url.slice(1))){res.setHeader('Content-Type',req.url.endsWith('.js')?'application/javascript':req.url.endsWith('.png')?'image/png':req.url.endsWith('.webmanifest')?'application/manifest+json':'text/html; charset=utf-8');res.end(fs.readFileSync(path.join(root,req.url.slice(1))));return;}
@@ -61,6 +66,19 @@ async function importData(page,data) {
 (async()=>{
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));base='http://127.0.0.1:'+server.address().port;
   browser=await chromium.launch({headless:true,channel:process.env.BROWSER_CHANNEL || 'chrome'});
+  await check('Android APK downloads the supplied release from home and profile',async()=>{
+    const {page,context}=await setup();
+    for(const view of ['home','me']){
+      await go(page,view);
+      const link=page.getByRole('link',{name:'下载安卓版 APK',exact:true});
+      const [download]=await Promise.all([page.waitForEvent('download'),link.click()]);
+      assert.equal(download.suggestedFilename(),'CSP备考助手-v1.0.apk');
+      const bytes=fs.readFileSync(await download.path());
+      assert.equal(require('node:crypto').createHash('sha256').update(bytes).digest('hex'),
+        '6671ef30302c708cbb87152c877bbf8fa0fd55f40e4a8b2e65b7dce8c0d4bb86');
+    }
+    await context.close();
+  });
   await check('Android home opens install instructions and consumes each browser prompt once',async()=>{
     const context=await browser.newContext({viewport:{width:390,height:844},userAgent:'Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Mobile Safari/537.36'});
     const page=await context.newPage();
