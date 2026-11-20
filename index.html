@@ -2486,9 +2486,669 @@ int main() {
         if (length) step = join(step, step);
     }
     cout << *max_element(best[0].begin(), best[0].end()) << '\n';
+}`},
+  {id:58,
+   source:"CCF CSP 201409-3",
+   title:"字符串匹配",
+   cat:"字符串",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP201409C",
+   limit:"以来源题面为准",
+   desc:"从若干个英文字符串中挑出包含模式串的所有行。包含要求匹配字符连续且顺序一致，匹配可以从任意位置开始。一行中即使命中多次，也只输出这一行一次。开关为 0 时忽略英文字母大小写，为 1 时逐字符精确比较。输出必须保留原始拼写、重复行以及输入顺序。",
+   input:"依次给出模式串、大小写开关、待查行数 n，接下来每行一个只含英文字母的字符串。",
+   output:"逐行输出命中的原字符串。",
+   hint:"只在比较时统一为小写，另外保留原文。若找到了子串，直接输出原文，不再继续数这一行的匹配次数。",
+   samples:[{"in":"aB\n0\n3\nABab\ncab\nbbb","out":"ABab\ncab"},{"in":"aB\n1\n3\nAb\nxaBy\naB","out":"xaBy\naB"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+string lower(string s) {
+    for (char &c : s) c = tolower(c);
+    return s;
+}
+int main() {
+    string pattern, line;
+    int exact, n;
+    cin >> pattern >> exact >> n;
+    if (!exact) pattern = lower(pattern);
+    while (n--) {
+        cin >> line;
+        string key = exact ? line : lower(line);
+        if (key.find(pattern) != string::npos) cout << line << '\n';
+    }
+}`},
+  {id:59,
+   source:"CCF CSP 201609-3",
+   title:"炉石传说",
+   cat:"模拟",
+   sourceUrl:"https://www.cnblogs.com/shenben/p/12607420.html",
+   limit:"以来源题面为准",
+   desc:"两名英雄初始生命都是 30，攻击为 0，先手先操作。召唤时把随从插在当前一方从 1 起算的指定位置，原有随从向右移动。攻击时指定己方随从与敌方目标，编号 0 的目标表示敌方英雄。双方同时受到对方攻击力的伤害，生命非正的随从移走，余下随从重新连续编号。end 把行动权交给另一方。输入的操作均合法。",
+   input:"首行操作数，随后每行是 summon 位置 攻击 生命、attack 攻方编号 目标编号 或 end。",
+   output:"共五行。第一行为先手胜 1、后手胜 −1 或未分胜负 0。然后依次输出先手英雄生命及其随从列表，再输出后手的两行。列表先给存活数量，再给从左到右的生命。",
+   hint:"把英雄放在各自队列的第 0 位。先读取双方攻击值并结算两边生命，再分别删除阵亡随从，才能正确处理同归于尽。",
+   samples:[{"in":"4\nsummon 1 3 2\nend\nsummon 1 2 3\nattack 1 1","out":"0\n30\n0\n30\n0"},{"in":"2\nsummon 1 31 1\nattack 1 0","out":"1\n30\n1 1\n-1\n0"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+struct Unit { int attack, hp; };
+int main() {
+    vector<Unit> board[2];
+    for (auto &side : board) side.push_back({0,30});
+    int n, turn = 0;
+    cin >> n;
+    while (n--) {
+        string cmd;
+        cin >> cmd;
+        auto &mine = board[turn], &other = board[1-turn];
+        if (cmd == "end") turn ^= 1;
+        else if (cmd == "summon") {
+            int p; Unit u;
+            cin >> p >> u.attack >> u.hp;
+            mine.insert(mine.begin()+p,u);
+        } else {
+            int a, b;
+            cin >> a >> b;
+            mine[a].hp -= other[b].attack;
+            other[b].hp -= mine[a].attack;
+            if (mine[a].hp <= 0) mine.erase(mine.begin()+a);
+            if (b && other[b].hp <= 0) other.erase(other.begin()+b);
+        }
+    }
+    cout << (board[0][0].hp <= 0 ? -1 : board[1][0].hp <= 0) << '\n';
+    for (auto &side : board) {
+        cout << side[0].hp << '\n' << side.size()-1;
+        for (size_t i=1; i<side.size(); ++i) cout << ' ' << side[i].hp;
+        cout << '\n';
+    }
+}`},
+  {id:60,
+   source:"CCF CSP 201912-3",
+   title:"化学方程式",
+   cat:"字符串",
+   sourceUrl:"https://pcs2.roj.ac.cn/problems/shumeng/CSP201912C/",
+   limit:"以来源题面为准",
+   desc:"判断每个等式两侧的各元素原子数是否逐项相等。加号分隔不同物质，化学式开头的系数乘整项；元素以大写字母开始，可跟小写字母。元素或右括号后面的数字只乘它前面的元素或整组，系数及下标缺省为 1。圆括号可嵌套，等号两侧的物质种类与排列顺序不必相同。",
+   input:"首行给等式数 n，随后每行给一个无空格的合法方程式。",
+   output:"每个已配平的式子输出 Y，否则输出 N。",
+   hint:"为每层括号开一张计数表，闭括号后把整张表按倍数加回上一层。遇到加号或等号时结束当前物质，最后才应用它的前导系数。",
+   samples:[{"in":"3\n2H2+O2=2H2O\nH2+O2=H2O\nCa(OH)2=CaO+H2O","out":"Y\nN\nY"},{"in":"2\n2Mg(OH)2=2MgO+2H2O\nAl2(SO4)3=Al2S3O11","out":"Y\nN"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+using Counts = map<string,long long>;
+int number(const string &s, size_t &i) {
+    if (i == s.size() || !isdigit(s[i])) return 1;
+    int value = 0;
+    while (i < s.size() && isdigit(s[i])) value = value*10 + s[i++]-'0';
+    return value;
+}
+Counts side(string s) {
+    Counts total;
+    size_t i=0;
+    while (i<s.size()) {
+        int factor=number(s,i);
+        vector<Counts> stack(1);
+        while (i<s.size() && s[i]!='+') {
+            char c=s[i++];
+            if (c=='(') stack.emplace_back();
+            else if (c==')') {
+                Counts group=move(stack.back());
+                stack.pop_back();
+                int k=number(s,i);
+                for (auto e:group) stack.back()[e.first]+=k*e.second;
+            } else {
+                string name(1,c);
+                while (i<s.size() && islower(s[i])) name+=s[i++];
+                stack.back()[name]+=number(s,i);
+            }
+        }
+        for (auto e:stack.front()) total[e.first]+=factor*e.second;
+        if (i<s.size()) ++i;
+    }
+    return total;
+}
+int main() {
+    int n; cin>>n;
+    while (n--) {
+        string s; cin>>s;
+        size_t k=s.find('=');
+        cout<<(side(s.substr(0,k))==side(s.substr(k+1))?"Y":"N")<<'\n';
+    }
+}`},
+  {id:61,
+   source:"CCF CSP 202209-3",
+   title:"防疫大数据",
+   cat:"模拟",
+   sourceUrl:"https://www.luogu.com.cn/problem/P16678",
+   limit:"以来源题面为准",
+   desc:"按日期 0、1、2……逐天更新一份名单。地区在第 t 天被通报后，从 t 到 t+6 都有风险；连续的有效期可以衔接。漫游记录写的是到访日期、用户、地区，可能迟到或重复。第 d 天列出这样的用户：最近七天内收到过一条记录，到访日也在这七天内，而且从到访日到今天，该地区每天都处在风险期。一次断档就会切断较早的到访记录。",
+   input:"第一行是天数。每天先读通报地区数 r、记录数 m 及 r 个地区编号，再读 m 组到访日期、用户号、地区号。",
+   output:"每天一行，先打印当天日期，再按编号升序列出用户，去重。空名单仍输出日期。",
+   hint:"每个地区只需保留最新一段连续风险期的起止日。旧到访若早于这段的起点，今天就不可能生效。记录按接收日分桶，只扫描最近七桶，另行判断到访日期。",
+   samples:[{"in":"3\n1 2 8\n0 3 8\n-1 1 8\n0 1\n0 2 8\n0 0","out":"0 3\n1 2 3\n2 2 3"},{"in":"2\n0 1\n0 1 9\n1 1 9\n1 5 9","out":"0\n1 5"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+struct Visit { int day, user, region; };
+int main() {
+    int n; cin>>n;
+    map<int,pair<int,int>> risk;
+    vector<vector<Visit>> log(7);
+    for (int day=0; day<n; ++day) {
+        int r,m; cin>>r>>m;
+        while (r--) {
+            int x; cin>>x;
+            if (!risk.count(x) || risk[x].second+1<day) risk[x].first=day;
+            risk[x].second=day+6;
+        }
+        auto &batch=log[day%7];
+        batch.resize(m);
+        for (auto &v:batch) cin>>v.day>>v.user>>v.region;
+        set<int> users;
+        for (auto &bucket:log) for (auto v:bucket) {
+            auto it=risk.find(v.region);
+            if (it==risk.end()) continue;
+            auto span=it->second;
+            if (v.day>=day-6 && v.day>=span.first && span.second>=day)
+                users.insert(v.user);
+        }
+        cout<<day;
+        for (int u:users) cout<<' '<<u;
+        cout<<'\n';
+    }
+}`},
+  {id:62,
+   source:"CCF CSP 202212-3",
+   title:"JPEG 解码",
+   cat:"数学",
+   sourceUrl:"https://www.luogu.com.cn/problem/P13899",
+   limit:"以来源题面为准",
+   desc:"解码一个 8×8 灰度块。先将扫描值沿行列下标和相等的对角线写回矩阵：从 (0,0) 起，接着是 (0,1)、(1,0)、(2,0)、(1,1)、(0,2)，未写入的位置补零。模式 0 到此为止。模式 1 再逐项乘以对应量化系数。模式 2 继续做二维逆离散余弦变换。\n\n设 B(i,u)=cos((2i+1)uπ/16)，当 u=0 时再除以 √2。位置 (i,j) 的像素为 128 加上所有频率项 B(i,u)M(u,v)B(j,v) 的和除以 4。按四舍五入取整，再限制到 [0,255]。",
+   input:"前八行各有八个量化系数，然后给扫描长度 n、模式 T 和 n 个扫描值。n 可为 0，至多 64。",
+   output:"输出八行八列的整数矩阵。",
+   hint:"对角线编号为 row+col。奇数线按行号从小到大，偶数线反向；超出边界的格子跳过。先用只有直流分量的输入检查逆变换，所有像素应相同。",
+   samples:[{"in":"2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n3\n0\n4 2 -1","out":"4 2 0 0 0 0 0 0\n-1 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0"},{"in":"2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n1\n1\n3","out":"6 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0\n0 0 0 0 0 0 0 0"},{"in":"2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n2 2 2 2 2 2 2 2\n1\n2\n8","out":"130 130 130 130 130 130 130 130\n130 130 130 130 130 130 130 130\n130 130 130 130 130 130 130 130\n130 130 130 130 130 130 130 130\n130 130 130 130 130 130 130 130\n130 130 130 130 130 130 130 130\n130 130 130 130 130 130 130 130\n130 130 130 130 130 130 130 130"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    int q[8][8], a[8][8]={}, n, mode;
+    for (auto &row:q) for (int &x:row) cin>>x;
+    cin>>n>>mode;
+    for (int d=0; d<=14; ++d) for (int k=0; k<8; ++k) {
+        int i=d%2?k:7-k, j=d-i;
+        if (j<0 || j>=8 || !n) continue;
+        cin>>a[i][j]; --n;
+        if (mode) a[i][j]*=q[i][j];
+    }
+    double basis[8][8];
+    for (int i=0;i<8;++i) for (int u=0;u<8;++u)
+        basis[i][u]=cos((2*i+1)*u*acos(-1)/16)*(u?1:sqrt(0.5));
+    for (int i=0;i<8;++i) {
+        for (int j=0;j<8;++j) {
+            int value=a[i][j];
+            if (mode==2) {
+                double sum=0;
+                for (int u=0;u<8;++u) for (int v=0;v<8;++v)
+                    sum+=basis[i][u]*a[u][v]*basis[j][v];
+                value=max(0,min(255,int(floor(128.5+sum/4))));
+            }
+            cout<<value<<(j==7?'\n':' ');
+        }
+    }
+}`},
+  {id:63,
+   source:"CCF CSP 202309-3",
+   title:"梯度求解",
+   cat:"数学",
+   sourceUrl:"https://www.luogu.com.cn/problem/P16056",
+   limit:"以来源题面为准",
+   desc:"给定一个多元多项式的后缀表达式。符号 x1、x2 等表示变量，整数可以带负号，独立的 +、-、* 是二元运算。每次询问给出一个变量编号和一个完整坐标点，求函数在该点对指定变量的偏导数。表达式在各次询问之间保持不变；同一变量在表达式中出现多次时，每次都要参与求导。",
+   input:"首行变量数 n 与询问数 m，第二行是用空格分隔的合法后缀表达式。每次询问给变量编号 i，随后给 n 个坐标值。",
+   output:"每次输出一个非负整数，为偏导数对 1000000007 的余数。",
+   hint:"栈中一起存值和导数。乘法将 (a,A)、(b,B) 合并成 (ab,Ab+aB)。减法要先弹出右操作数。变量本身即所求变量时导数为 1，其他变量和常量的导数都是 0。",
+   samples:[{"in":"2 2\nx1 x2 * x1 +\n1 2 3\n2 -4 3","out":"4\n1000000003"},{"in":"1 2\n-2 x1 x1 * *\n1 3\n1 0","out":"999999995\n0"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    const long long mod=1000000007;
+    int n,m; cin>>n>>m;
+    string line,t; getline(cin,line); getline(cin,line);
+    istringstream parser(line); vector<string> tokens;
+    while (parser>>t) tokens.push_back(t);
+    while (m--) {
+        int target; cin>>target;
+        vector<long long> x(n+1);
+        for (int i=1;i<=n;++i) cin>>x[i];
+        vector<pair<long long,long long>> stack;
+        for (auto &s:tokens) {
+            if (s=="+" || s=="-" || s=="*") {
+                auto b=stack.back(); stack.pop_back();
+                auto &a=stack.back();
+                if (s=="*") a={a.first*b.first%mod,(a.second*b.first+a.first*b.second)%mod};
+                else {
+                    int sign=s=="+"?1:-1;
+                    a={(a.first+sign*b.first)%mod,(a.second+sign*b.second)%mod};
+                }
+            } else if (s[0]=='x') {
+                int id=stoi(s.substr(1));
+                stack.emplace_back(x[id],id==target);
+            } else stack.emplace_back(stoll(s),0);
+        }
+        cout<<(stack.back().second+mod)%mod<<'\n';
+    }
+}`},
+  {id:64,
+   source:"CCF CSP 202312-3",
+   title:"树上搜索",
+   cat:"图论",
+   sourceUrl:"https://www.luogu.com.cn/problem/P16066",
+   limit:"以来源题面为准",
+   desc:"类别组成以 1 为根的树。每个节点都有正权重，自身也可以是目标。候选类别起初是整棵树。对每个候选节点 u，分别求仍在 u 的子树内与仍在子树外的权重和。选择两者差的绝对值最小的节点发问，并列选编号最小者。若目标在所问子树内，保留该部分，否则保留其余候选。每一轮只使用剩余类别的权重，直到只剩一个类别。",
+   input:"首行是类别数 n 和测试数 m，接下来依次给 n 个权重和编号 2 至 n 的父节点，再给 m 个目标编号。",
+   output:"每个目标一行，按提问顺序输出类别编号。最终唯一的候选无需再问。",
+   hint:"相同候选集的下一问与具体目标无关。按 DFS 序保存候选，逆序把权重累加到父节点。按最优询问分成两组，并把本次问题追加到每个候选的路径上。全部目标共享这棵决策树。",
+   samples:[{"in":"3 3\n1 1 1\n1 1\n1\n2\n3","out":"2 3\n2\n2 3"},{"in":"3 2\n2 4 1\n3 1\n2\n3","out":"2\n2 3"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    int n,m; cin>>n>>m;
+    vector<long long> weight(n+1);
+    vector<int> parent(n+1), start(n+1), size(n+1,1), order;
+    vector<vector<int>> child(n+1), answer(n+1);
+    for(int i=1;i<=n;++i) cin>>weight[i];
+    for(int i=2;i<=n;++i) {cin>>parent[i]; child[parent[i]].push_back(i);}
+    vector<int> stack{1};
+    while(!stack.empty()) {
+        int u=stack.back(); stack.pop_back();
+        start[u]=order.size(); order.push_back(u);
+        for(int v:child[u]) stack.push_back(v);
+    }
+    for(auto it=order.rbegin();it!=order.rend();++it) size[parent[*it]]+=size[*it];
+    vector<vector<int>> groups{order};
+    while(!groups.empty()) {
+        auto ids=move(groups.back()); groups.pop_back();
+        if(ids.size()<2) continue;
+        vector<long long> sum(n+1);
+        long long total=0;
+        for(int u:ids) {sum[u]=weight[u]; total+=weight[u];}
+        for(auto it=ids.rbegin();it!=ids.rend();++it) sum[parent[*it]]+=sum[*it];
+        int ask=ids.front();
+        for(int u:ids)
+            if(make_pair(abs(total-2*sum[u]),u)<make_pair(abs(total-2*sum[ask]),ask)) ask=u;
+        vector<int> yes,no;
+        for(int u:ids) {
+            answer[u].push_back(ask);
+            bool inside=start[ask]<=start[u] && start[u]<start[ask]+size[ask];
+            (inside?yes:no).push_back(u);
+        }
+        groups.push_back(move(yes)); groups.push_back(move(no));
+    }
+    while(m--) {int u; cin>>u; for(int q:answer[u]) cout<<q<<' '; cout<<'\n';}
+}`},
+  {id:65,
+   source:"CCF CSP 202406-3",
+   title:"文本分词",
+   cat:"字符串",
+   sourceUrl:"https://pcs2.roj.ac.cn/problems/shumeng/CSP202406C/",
+   limit:"以来源题面为准",
+   desc:"用带出现频率的英文单词训练词汇表。先把出现过的单个字母按字母序加入表，令每个单词的当前切分为它的字母序列。每轮统计所有相邻词元对的加权次数：同一对在一个词中出现多次，每处都按该词的频率贡献。选次数最多的一对；并列时依次选拼接结果更短、左词元更短、拼接结果字典序更小的一对。\n\n把选定两项拼成新词元并加入表，再在每个单词内从左到右合并这一对，已参与替换的词元不能再用。例如 aaa 中 (a,a) 统计两次，本轮替换得到 aa、a。达到要求的词表大小即停止。",
+   input:"首行 n、m 为单词数及目标词表大小。之后每行给出一个小写单词和频率。",
+   output:"按加入的顺序，每行输出一个词元。",
+   hint:"可以把一个单词对相邻对计数的贡献单独维护。只有包含获胜对的单词会改变，先扣除这些单词的旧贡献，再加入新贡献。相邻对用左右两项标识，不能只用拼接后的字符串作为键。按频率和并列规则维护优先队列或有序集合，可以直接取出下一对。",
+   samples:[{"in":"2 5\naaa 2\nab 3","out":"a\nb\naa\nab\naaa"},{"in":"2 3\nba 1\nab 1","out":"a\nb\nab"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+using Pair=pair<string,string>;
+using Rank=tuple<long long,size_t,size_t,string,Pair>;
+int main() {
+    int n,m; cin>>n>>m;
+    vector<vector<string>> words(n);
+    vector<long long> freq(n);
+    set<string> letters;
+    for(int i=0;i<n;++i) {
+        string s; cin>>s>>freq[i];
+        for(char c:s) {string t(1,c); words[i].push_back(t); letters.insert(t);}
+    }
+    map<Pair,long long> score;
+    map<Pair,set<int>> users;
+    set<Rank> ranked;
+    auto rank=[&](const Pair &p) {
+        string joined=p.first+p.second;
+        return make_tuple(-score[p],joined.size(),p.first.size(),joined,p);
+    };
+    auto update=[&](int i,int sign) {
+        map<Pair,int> multiplicity;
+        auto &w=words[i];
+        for(size_t j=1;j<w.size();++j) ++multiplicity[{w[j-1],w[j]}];
+        for(auto &entry:multiplicity) {
+            auto &p=entry.first;
+            ranked.erase(rank(p));
+            score[p]+=sign*freq[i]*entry.second;
+            if(sign>0) users[p].insert(i); else users[p].erase(i);
+            if(score[p]) ranked.insert(rank(p));
+        }
+    };
+    for(int i=0;i<n;++i) update(i,1);
+    for(auto &s:letters) cout<<s<<'\n';
+    for(int count=letters.size();count<m && !ranked.empty();++count) {
+        Pair chosen=get<4>(*ranked.begin());
+        string joined=chosen.first+chosen.second;
+        cout<<joined<<'\n';
+        auto affected=users[chosen];
+        for(int i:affected) {
+            update(i,-1);
+            vector<string> next;
+            auto &w=words[i];
+            for(size_t j=0;j<w.size();++j) {
+                if(j+1<w.size() && w[j]==chosen.first && w[j+1]==chosen.second) {
+                    next.push_back(joined); ++j;
+                } else next.push_back(w[j]);
+            }
+            w.swap(next);
+            update(i,1);
+        }
+    }
+}`},
+  {id:66,
+   source:"CCF CSP 201512-4",
+   title:"送货",
+   cat:"图论",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP201512D",
+   limit:"以来源题面为准",
+   desc:"从 1 号路口出发送货，每条无向街道都必须经过恰好一次，可以多次经过同一个路口。起点固定，终点自由。若有多条合法路线，比较完整路口序列，第一次不同处编号较小的路线优先。两个路口之间至多有一条街道。",
+   input:"首行 n、m，接下来 m 行给出每条街道的两个端点。n≤10000，m≤100000。",
+   output:"输出字典序最小的 m+1 个路口编号，无解输出 -1。",
+   hint:"先判断奇度顶点：要么全部为偶数，要么恰有两个且 1 是其中一个。从 1 按邻点升序消耗未走过的边，走不动时才把顶点记入答案。将退栈序列反转得到欧拉路线，再检查是否用尽全图的边。",
+   samples:[{"in":"4 4\n1 2\n1 3\n3 4\n4 1","out":"1 3 4 1 2"},{"in":"3 2\n1 2\n1 3","out":"-1"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    int n,m; cin>>n>>m;
+    vector<vector<pair<int,int>>> adj(n+1);
+    for(int i=0;i<m;++i) {
+        int a,b; cin>>a>>b;
+        adj[a].emplace_back(b,i); adj[b].emplace_back(a,i);
+    }
+    int odd=0;
+    for(auto &row:adj) {odd+=row.size()%2; sort(row.rbegin(),row.rend());}
+    if(odd && (odd!=2 || adj[1].size()%2==0)) {cout<<-1; return 0;}
+    vector<int> path{1}, result;
+    vector<bool> used(m);
+    while(!path.empty()) {
+        auto &row=adj[path.back()];
+        while(!row.empty() && used[row.back().second]) row.pop_back();
+        if(row.empty()) {result.push_back(path.back()); path.pop_back();}
+        else {
+            auto edge=row.back(); row.pop_back();
+            used[edge.second]=true; path.push_back(edge.first);
+        }
+    }
+    if(int(result.size())!=m+1) cout<<-1;
+    else for(auto it=result.rbegin();it!=result.rend();++it) cout<<*it<<' ';
+}`},
+  {id:67,
+   source:"CCF CSP 202104-4",
+   title:"校门外的树",
+   cat:"动态规划",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202104D",
+   limit:"以来源题面为准",
+   desc:"直线上给定若干严格递增的障碍坐标。选择一部分障碍作为分段点，首尾障碍必须选。对每个相邻分段点之间的区间，至少种一棵树；树的位置只能是整数，且区间内所有树加上两个端点必须恰好组成一个等差数列。区间内未选作分段点的障碍同样不能种树。不同区间可以选不同间距，计算不同树位置集合的数量。",
+   input:"首行障碍数 n（2 至 1000），下一行给出各坐标，最大为 100000。",
+   output:"输出方案数模 1000000007。",
+   hint:"固定左端点，向右尝试下一处分界。步长 d 必须整除区间长度且小于它。若此前的某个障碍与左端点之差也能被 d 整除，这个步长已被挡住。标记约数时还要标记距离本身，避免后面的树恰好落在当前障碍上。分段端点可以从树的位置恢复：从一个端点起按首棵树确定的步长前进，首次遇到障碍即为下一端点。",
+   samples:[{"in":"3\n0 2 6","out":"3"},{"in":"2\n1 13","out":"5"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    int n; cin>>n;
+    vector<int> a(n); for(int &x:a) cin>>x;
+    int limit=a.back()-a.front();
+    vector<vector<int>> divisors(limit+1);
+    for(int d=1;d<=limit;++d)
+        for(int k=d;k<=limit;k+=d) divisors[k].push_back(d);
+    vector<long long> dp(n); dp[0]=1;
+    vector<int> seen(limit+1,-1);
+    for(int i=0;i<n;++i) for(int j=i+1;j<n;++j) {
+        int gap=a[j]-a[i], choices=0;
+        for(int d:divisors[gap]) {
+            if(d<gap && seen[d]!=i) ++choices;
+            seen[d]=i;
+        }
+        dp[j]=(dp[j]+dp[i]*choices)%1000000007;
+    }
+    cout<<dp.back();
+}`},
+  {id:68,
+   source:"CCF CSP 202406-4",
+   title:"货物调度",
+   cat:"动态规划",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202406D",
+   limit:"以来源题面为准",
+   desc:"为了获得至少 v 的现金，可以从若干仓库卖出货物。仓库 j 一旦出货就需支付一次固定费用 bⱼ，此外每件另付 cⱼ。未启用的仓库不收费。目标比较的是卖价之和扣除全部费用后的净收入；在净收入达标的方案中，找出总费用最小者。每件货物只可卖一次，同一仓库允许卖多件。",
+   input:"首行 n、m、v。随后 n 行依次给仓库的固定费和单件费，再用 m 行给货物价值和仓库编号（从 0 开始）。仓库与货物各至多 1000，费用参数至多 20，保证目标可达。",
+   output:"输出最少需要支付的总费用。",
+   hint:"若决定从一间仓库卖 k 件，取最贵的 k 件最优。按售价降序求前缀和，得到这间仓库的一组互斥选项。按总费用做分组背包，状态存能获得的最大净收入；取选项时必须读取上一间仓库处理完的状态。",
+   samples:[{"in":"2 3 10\n2 1\n3 2\n7 0\n7 0\n15 1","out":"4"},{"in":"1 2 2\n1 2\n1 0\n5 0","out":"3"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+int main() {
+    int n,m,target; cin>>n>>m>>target;
+    vector<int> base(n),each(n);
+    vector<vector<int>> stock(n);
+    for(int j=0;j<n;++j) cin>>base[j]>>each[j];
+    while(m--) {int value,j; cin>>value>>j; stock[j].push_back(value);}
+    vector<int> dp(1,0);
+    for(int j=0;j<n;++j) {
+        auto &v=stock[j]; if(v.empty()) continue;
+        sort(v.rbegin(),v.rend());
+        auto next=dp;
+        next.resize(dp.size()+base[j]+each[j]*v.size(),-1);
+        int gross=0;
+        for(int k=1;k<=int(v.size());++k) {
+            gross+=v[k-1];
+            int cost=base[j]+k*each[j], profit=gross-cost;
+            if(profit<=0) continue;
+            for(int p=0;p<int(dp.size());++p) if(dp[p]>=0)
+                next[p+cost]=max(next[p+cost],dp[p]+profit);
+        }
+        dp.swap(next);
+    }
+    cout<<(find_if(dp.begin(),dp.end(),[&](int x){return x>=target;})-dp.begin());
+}`},
+  {id:69,
+   source:"CCF CSP 201809-5",
+   title:"线性递推式",
+   cat:"数学",
+   sourceUrl:"https://www.cnblogs.com/z-712/p/13512400.html",
+   limit:"以来源题面为准",
+   desc:"序列从 a₀=1 开始，把负下标项视为 0。之后 aₙ 依次由前 m 项按系数 k₁ 到 kₘ 加权相加，其中 k₁ 乘最近的一项。要求连续输出从 l 到 r 的所有项，每项按 998244353 取模。区间起点可能远离 0；仅仅缩小存储窗口仍然会花大量时间跨过前面的项。",
+   input:"第一行给阶数 m 和左右端点 l、r，第二行按从近到远的顺序给出 m 个系数。",
+   output:"逐行输出 aₗ 至 aᵣ 的非负模值，两端都包含。",
+   hint:"先算出前 m 项。关系 xᵐ=k₁xᵐ⁻¹+…+kₘ 允许把任意高次幂降成 m 项线性组合。用二进制乘方得到 xˡ 的系数，再与初始项点乘；向后移动一步只要乘一次 x 并消掉最高项。时间 O(m² log(l+1)+m(r−l+1))。",
+   samples:[{"in":"2 4 7\n1 1","out":"5\n8\n13\n21"},{"in":"1 30 31\n2","out":"75497471\n150994942"},{"in":"3 3 6\n2 0 4","out":"12\n32\n80\n208"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+const long long mod=998244353;
+using Poly=vector<long long>;
+Poly product(const Poly &a,const Poly &b,const Poly &k) {
+    int m=k.size();
+    Poly v(2*m-1);
+    for(int i=0;i<m;++i) for(int j=0;j<m;++j)
+        v[i+j]=(v[i+j]+a[i]*b[j])%mod;
+    for(int d=2*m-2;d>=m;--d) for(int j=1;j<=m;++j)
+        v[d-j]=(v[d-j]+v[d]*k[j-1])%mod;
+    v.resize(m);
+    return v;
+}
+int main() {
+    int m; long long l,r; cin>>m>>l>>r;
+    Poly k(m),initial(m),power(m),coef(m);
+    for(auto &v:k) cin>>v;
+    initial[0]=coef[0]=1;
+    for(int i=1;i<m;++i) for(int j=1;j<=i;++j)
+        initial[i]=(initial[i]+k[j-1]*initial[i-j])%mod;
+    if(m==1) power[0]=k[0]; else power[1]=1;
+    for(long long e=l;e;e/=2) {
+        if(e%2) coef=product(coef,power,k);
+        power=product(power,power,k);
+    }
+    for(long long i=l;i<=r;++i) {
+        long long value=0,top=coef.back();
+        for(int j=0;j<m;++j) value=(value+coef[j]*initial[j])%mod;
+        cout<<value<<'\n';
+        for(int j=m-1;j>=0;--j)
+            coef[j]=((j?coef[j-1]:0)+top*k[m-1-j])%mod;
+    }
+}`},
+  {id:70,
+   source:"CCF CSP 202312-5",
+   title:"彩色路径",
+   cat:"图论",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202312E",
+   limit:"以来源题面为准",
+   desc:"有向图的每个点带一种颜色，边带正长度。从 0 走到 n−1，希望路线尽量长。全程各顶点颜色互异，且包含的顶点总数不超过 l。端点也计入数量和颜色，不能把 l 当成可走的边数。图中即使有环，满足颜色约束的路线也不会重复顶点。题目保证至少有一条符合条件的路线。",
+   input:"首行依次是 n、m、l、k，其中 n≤100、m≤5000、l≤9、k≤30。第二行是各点颜色。最后三行分别给 m 条边的起点、终点、长度，按相同列配成一条边。",
+   output:"输出可行路线的最大长度。",
+   hint:"路线至多八条边，可以在中点折半。分别从起点沿正向边、从终点沿反向边扩展至多四步。保留每个步数、末端和颜色集合下的最大长度。拼接时两侧只能共享中点颜色。将右半路径按收益降序编号，再按颜色记录哪些编号冲突，就能快速找出第一个兼容的右半路径。",
+   samples:[{"in":"4 4 4 9\n0 1 1 8\n0 1 0 2\n1 3 2 3\n2 7 4 3","out":"9"},{"in":"3 3 2 9\n0 2 8\n0 1 0\n1 2 2\n5 6 3","out":"3"},{"in":"5 6 5 9\n0 1 2 1 8\n0 1 2 2 3 0\n1 2 3 4 4 3\n3 2 9 4 3 1","out":"9"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+using Edges=vector<vector<pair<int,int>>>;
+using Row=unordered_map<int,int>;
+using Layers=vector<vector<Row>>;
+Layers halves(int root,int steps,const Edges &edges,const vector<int> &color) {
+    int n=color.size();
+    Layers dp(steps+1,vector<Row>(n));
+    dp[0][root][1<<color[root]]=0;
+    for(int t=0;t<steps;++t) for(int u=0;u<n;++u)
+        for(auto state:dp[t][u]) for(auto e:edges[u]) {
+            int bit=1<<color[e.first];
+            if(state.first & bit) continue;
+            int &best=dp[t+1][e.first][state.first|bit];
+            best=max(best,state.second+e.second);
+        }
+    return dp;
+}
+int main() {
+    int n,m,l,k; cin>>n>>m>>l>>k;
+    vector<int> c(n),u(m),v(m);
+    for(int &x:c) cin>>x;
+    for(int &x:u) cin>>x;
+    for(int &x:v) cin>>x;
+    Edges g(n),rev(n);
+    for(int j=0;j<m;++j) {
+        int w; cin>>w;
+        g[u[j]].emplace_back(v[j],w);
+        rev[v[j]].emplace_back(u[j],w);
+    }
+    auto left=halves(0,(l-1)/2,g,c), right=halves(n-1,l/2,rev,c);
+    int answer=0;
+    for(int d=1;d<l;++d) for(int mid=0;mid<n;++mid) {
+        auto &a=left[d/2][mid], &b=right[(d+1)/2][mid];
+        if(a.empty() || b.empty()) continue;
+        vector<pair<int,int>> ranked;
+        for(auto state:b) ranked.emplace_back(state.second,state.first);
+        sort(ranked.rbegin(),ranked.rend());
+        int blocks=(ranked.size()+63)/64;
+        vector<vector<unsigned long long>> contains(k,vector<unsigned long long>(blocks));
+        for(int i=0;i<int(ranked.size());++i)
+            for(int mask=ranked[i].second;mask;mask&=mask-1)
+                contains[__builtin_ctz(mask)][i/64]|=1ULL<<(i%64);
+        for(auto state:a) for(int block=0;block<blocks;++block) {
+            unsigned long long ok=~0ULL;
+            for(int mask=state.first^(1<<c[mid]);mask;mask&=mask-1)
+                ok &= ~contains[__builtin_ctz(mask)][block];
+            if(!ok) continue;
+            int i=block*64+__builtin_ctzll(ok);
+            if(i<int(ranked.size())) answer=max(answer,state.second+ranked[i].first);
+            break;
+        }
+    }
+    cout<<answer;
+}`},
+  {id:71,
+   source:"CCF CSP 202406-5",
+   title:"哥德尔机",
+   cat:"数据结构",
+   sourceUrl:"https://oj.shumeng.tech/p/CSP202406E",
+   limit:"以来源题面为准",
+   desc:"矩阵的全部初值为 0。给定 n 次学习，每次指定一个闭矩形和权值 v，对覆盖到的每一点把旧值 z 更新为 v+max(z−v,0)。学习结束后才开始推理，每次询问一个闭矩形中最大的最终权重。两矩形只在边或角上有公共格点也算相交。若没有学习矩形覆盖查询范围，结果为 0。\n\n总坐标范围可达 n×n，无法逐格建立矩阵。关键是一次学习只会把权重提高到旧值与 v 中的较大者，因此答案等于与询问相交的所有学习矩形的最大权值。",
+   input:"首行 n、m（均至多 500000）。随后 n 行每行 x₁ x₂ y₁ y₂ v，再给 m 行查询四个边界。坐标及权值在 1 至 n 内，左右端点和上下端点均包含。",
+   output:"按查询的输入顺序，每行输出一个最高权值。",
+   hint:"把权值区间对半分，对每个查询测试是否碰到上半区的矩形。按查询右界扫描 x，把左界不超过它的矩形加入结构，在其 y 区间记录最大的 x 右界。查询 y 区间最大值若达到查询左界，两轴均相交。按结果分流到左右半区。初次排好序，后续稳定划分，整体 O((n+m) log² n)。",
+   samples:[{"in":"3 3\n1 2 1 2 3\n2 3 2 3 1\n3 3 1 1 2\n2 2 2 2\n1 1 3 3\n3 3 1 3","out":"3\n0\n2"},{"in":"1 2\n1 1 1 1 1\n1 1 1 1\n1 1 1 1","out":"1\n1"},{"in":"4 3\n1 1 1 4 4\n2 4 2 3 3\n2 3 1 1 1\n4 4 4 4 2\n1 2 4 4\n3 3 1 1\n3 3 4 4","out":"4\n1\n0"}],
+   code:String.raw`#include <bits/stdc++.h>
+using namespace std;
+struct Rect {int x1,x2,y1,y2,value;};
+struct Sweep {
+    int base=1;
+    vector<int> tag,best,touched;
+    Sweep(int n) {
+        while(base<n) base*=2;
+        tag.resize(2*base); best.resize(2*base);
+    }
+    void raise(int i,int value,bool cover) {
+        if(!best[i]) touched.push_back(i);
+        best[i]=max(best[i],value);
+        if(cover) tag[i]=max(tag[i],value);
+    }
+    void add(int a,int b,int value) {
+        int first=a+base-1,last=b+base-1;
+        for(int l=first,r=last;l<=r;l/=2,r/=2) {
+            if(l%2) raise(l++,value,true);
+            if(!(r%2)) raise(r--,value,true);
+        }
+        for(int p=first/2;p;p/=2) raise(p,value,false);
+        for(int p=last/2;p;p/=2) raise(p,value,false);
+    }
+    int query(int a,int b) {
+        int first=a+base-1,last=b+base-1,answer=0;
+        for(int l=first,r=last;l<=r;l/=2,r/=2) {
+            if(l%2) answer=max(answer,best[l++]);
+            if(!(r%2)) answer=max(answer,best[r--]);
+        }
+        for(int p=first;p;p/=2) answer=max(answer,tag[p]);
+        for(int p=last;p;p/=2) answer=max(answer,tag[p]);
+        return answer;
+    }
+    void clear() {
+        for(int p:touched) best[p]=tag[p]=0;
+        touched.clear();
+    }
+};
+int main() {
+    ios::sync_with_stdio(false); cin.tie(nullptr);
+    int n,m; cin>>n>>m;
+    vector<Rect> rect(n),ask(m);
+    for(auto &r:rect) cin>>r.x1>>r.x2>>r.y1>>r.y2>>r.value;
+    for(auto &q:ask) cin>>q.x1>>q.x2>>q.y1>>q.y2;
+    vector<int> ids(n),qs(m),answer(m);
+    iota(ids.begin(),ids.end(),0); iota(qs.begin(),qs.end(),0);
+    sort(ids.begin(),ids.end(),[&](int i,int j){return rect[i].x1<rect[j].x1;});
+    sort(qs.begin(),qs.end(),[&](int i,int j){return ask[i].x2<ask[j].x2;});
+    Sweep sweep(n);
+    function<void(int,int,vector<int>,vector<int>)> solve =
+      [&](int lo,int hi,vector<int> updates,vector<int> queries) {
+        if(queries.empty()) return;
+        if(lo==hi || updates.empty()) {for(int i:queries) answer[i]=lo; return;}
+        int mid=(lo+hi)/2;
+        vector<int> low,high,miss,hit;
+        for(int i:updates) (rect[i].value>mid?high:low).push_back(i);
+        vector<int>().swap(updates);
+        size_t j=0;
+        for(int i:queries) {
+            auto q=ask[i];
+            while(j<high.size() && rect[high[j]].x1<=q.x2) {
+                auto r=rect[high[j++]]; sweep.add(r.y1,r.y2,r.x2);
+            }
+            (sweep.query(q.y1,q.y2)>=q.x1?hit:miss).push_back(i);
+        }
+        vector<int>().swap(queries);
+        sweep.clear();
+        solve(lo,mid,move(low),move(miss));
+        solve(mid+1,hi,move(high),move(hit));
+    };
+    solve(0,n,move(ids),move(qs));
+    for(int x:answer) cout<<x<<'\n';
 }`}
 );
-var BANK_VERSION = "2026.11.19.3";
+var BANK_VERSION = "2026.11.20";
 var CATS = ["全部","模拟","基础语法","字符串","枚举","贪心","二分","动态规划","图论","数据结构","数学"];
 
 /* =========================================================
