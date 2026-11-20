@@ -318,6 +318,11 @@ button:disabled{cursor:default;}
 .countdown .cd-date{font-size:13px;}
 .countdown .cd-settings{position:absolute;right:20px;top:20px;font-size:13px;
   color:var(--brand-text);padding:6px 12px;border:1px solid var(--brand);border-radius:999px;}
+.install-home{margin:0 0 12px;text-align:right}
+.install-home button{min-height:44px;margin:0}
+#installGuide ol{padding-inline-start:1.5em;line-height:1.7}
+#installGuide summary{cursor:pointer;padding:8px 0}
+#installGuide a{overflow-wrap:anywhere}
 .home-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0;}
 .home-actions .btn{margin:0;}
 .section-heading{margin:24px 0 12px;font-size:18px;}
@@ -406,6 +411,7 @@ button:disabled{cursor:default;}
 
 <!-- ============ 首页 ============ -->
 <section class="page active" id="page-home">
+  <div class="install-home" id="installHome"><button class="favorite-btn" type="button" id="installFromHome">安装到手机</button></div>
   <div class="card" id="firstLesson" hidden><h2 class="card-title">从第一道题开始</h2><p>先读题、写草稿，再运行样例。自评后可以看参考解法。</p><button class="btn" onclick="startPractice()">开始第一组练习</button></div>
   <aside style="margin-bottom:12px" class="card backup-banner" aria-label="档案备份">
     <strong>学习记录只保存在当前浏览器</strong>
@@ -614,8 +620,20 @@ button:disabled{cursor:default;}
 
 <!-- ============ 我的 ============ -->
 <section class="page" id="page-me">
-  <div class="card"><h2 class="card-title">添加到手机主屏</h2>
-    <p class="about">Android 可在浏览器菜单选择「安装应用」或「添加到主屏幕」，iPhone 可在 Safari 分享菜单选择「添加到主屏幕」。</p>
+  <div class="card" id="installGuide">
+    <h2 class="card-title" id="installTitle" tabindex="-1">安装 CSP 备考助手</h2>
+    <p class="about">通过浏览器把练习入口放到手机主屏幕，以后点「CSP 练习」图标就能打开。</p>
+    <button type="button" id="installNative" class="btn" hidden>立即安装到此设备</button>
+    <p id="installStatus" role="status"></p>
+    <div id="installSteps">
+      <details id="androidSteps" open><summary>安卓手机安装步骤</summary>
+        <ol><li>用手机 Chrome 打开本站。如果在微信或 QQ 里，先点右上角「…」选择「在浏览器打开」，也可以把下面的网址复制到 Chrome。</li>
+        <li>点 Chrome 地址栏旁的「⋮」。选择「安装并创建快捷方式」或「添加到主屏幕」。部分版本会直接显示「安装应用」。</li>
+        <li>点「安装」并按系统提示确认。如果只看到「创建快捷方式」，也可以用它添加主屏入口。</li></ol>
+        <a href="https://gehjaja.github.io/CSP-helper/">https://gehjaja.github.io/CSP-helper/</a>
+      </details>
+      <details id="iosSteps"><summary>iPhone 安装步骤</summary><p class="about">在 Safari 打开本站，点「分享」→「添加到主屏幕」→「添加」。</p></details>
+    </div>
     <p id="offlineState" role="status">离线题库需先通过 HTTPS 或 localhost 打开。运行 Python 样例与外部 OJ 需要联网。</p>
   </div>
   <div class="card">
@@ -4643,6 +4661,58 @@ function updateMajorTip(){
 /* =========================================================
    9. 初始化与事件绑定
    ========================================================= */
+function bindInstallation(){
+  const home=document.getElementById("installHome");
+  const native=document.getElementById("installNative");
+  const status=document.getElementById("installStatus");
+  const steps=document.getElementById("installSteps");
+  const standalone=window.matchMedia("(display-mode: standalone)");
+  let installed=standalone.matches || navigator.standalone===true;
+  let pending=null, prompting=false;
+  const ios=/iPhone|iPod|iPad/.test(navigator.userAgent) ||
+    (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+  document.getElementById("iosSteps").open=ios;
+  document.getElementById("androidSteps").open=!ios;
+  function render(){
+    home.hidden=installed;
+    steps.hidden=installed;
+    native.hidden=installed || !pending;
+    native.disabled=prompting;
+    if(installed) status.textContent="已安装，可从主屏幕打开 CSP 练习。";
+  }
+  async function install(){
+    const event=pending;
+    if(!event || installed || prompting) return;
+    prompting=true;
+    render();
+    try{
+      await event.prompt();
+      const choice=await event.userChoice;
+      status.textContent=choice.outcome==="accepted"?"已确认安装，请查看系统安装提示。":"已取消安装。你仍可按下方步骤添加到主屏幕。";
+    }catch{
+      status.textContent="当前浏览器未能打开安装窗口，请按下方步骤操作。";
+    }finally{
+      if(pending===event) pending=null;
+      prompting=false;
+      render();
+    }
+  }
+  window.addEventListener("beforeinstallprompt",event=>{
+    event.preventDefault();
+    pending=event;
+    if(!installed) status.textContent="此浏览器支持直接安装。";
+    render();
+  });
+  window.addEventListener("appinstalled",()=>{installed=true;pending=null;render();});
+  native.onclick=install;
+  document.getElementById("installFromHome").onclick=()=>{
+    go("me");
+    document.getElementById("installTitle").focus();
+    if(/Android/i.test(navigator.userAgent)) install();
+  };
+  render();
+}
+if(typeof window!=="undefined") bindInstallation();
 async function init(){
   if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
     navigator.serviceWorker.register("./sw.js").then(()=>navigator.serviceWorker.ready).then(()=>{
