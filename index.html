@@ -318,7 +318,8 @@ button:disabled{cursor:default;}
 .countdown .cd-date{font-size:13px;}
 .countdown .cd-settings{position:absolute;right:20px;top:20px;font-size:13px;
   color:var(--brand-text);padding:6px 12px;border:1px solid var(--brand);border-radius:999px;}
-.install-home{margin:0 0 12px;text-align:right}
+.install-home{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.apk-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 14px;border-radius:8px;background:var(--brand);color:var(--brand-on);font-weight:600;text-decoration:none}
 .install-home button{min-height:44px;margin:0}
 #installGuide ol{padding-inline-start:1.5em;line-height:1.7}
 #installGuide summary{cursor:pointer;padding:8px 0}
@@ -411,7 +412,7 @@ button:disabled{cursor:default;}
 
 <!-- ============ 首页 ============ -->
 <section class="page active" id="page-home">
-  <div class="install-home" id="installHome"><button class="favorite-btn" type="button" id="installFromHome">安装到手机</button></div>
+  <div class="install-home"><a class="apk-link" href="downloads/CSP-helper-v1.0.apk" download="CSP备考助手-v1.0.apk">下载安卓版 APK</a><span id="installHome"><button class="favorite-btn" type="button" id="installFromHome">添加网页到主屏幕</button></span></div>
   <div class="card" id="firstLesson" hidden><h2 class="card-title">从第一道题开始</h2><p>先读题、写草稿，再运行样例。自评后可以看参考解法。</p><button class="btn" onclick="startPractice()">开始第一组练习</button></div>
   <aside style="margin-bottom:12px" class="card backup-banner" aria-label="档案备份">
     <strong>学习记录只保存在当前浏览器</strong>
@@ -622,6 +623,9 @@ button:disabled{cursor:default;}
 <section class="page" id="page-me">
   <div class="card" id="installGuide">
     <h2 class="card-title" id="installTitle" tabindex="-1">安装 CSP 备考助手</h2>
+    <a class="apk-link" href="downloads/CSP-helper-v1.0.apk" download="CSP备考助手-v1.0.apk">下载安卓版 APK</a>
+    <p class="about">安卓安装包 · v1.0 · 3.18 MB。下载后，在浏览器的下载记录中点开 APK，按系统提示安装。</p>
+    <h3>添加网页到主屏幕</h3>
     <p class="about">通过浏览器把练习入口放到手机主屏幕，以后点「CSP 练习」图标就能打开。</p>
     <button type="button" id="installNative" class="btn" hidden>立即安装到此设备</button>
     <p id="installStatus" role="status"></p>
