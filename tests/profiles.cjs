@@ -61,6 +61,37 @@ async function importData(page,data) {
 (async()=>{
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));base='http://127.0.0.1:'+server.address().port;
   browser=await chromium.launch({headless:true,channel:process.env.BROWSER_CHANNEL || 'chrome'});
+  await check('Android home opens install instructions and consumes each browser prompt once',async()=>{
+    const context=await browser.newContext({viewport:{width:390,height:844},userAgent:'Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Mobile Safari/537.36'});
+    const page=await context.newPage();
+    // Exercise both browser paths independently of the host Chrome install policy.
+    await page.addInitScript(()=>window.addEventListener('beforeinstallprompt',event=>{
+      if(event.isTrusted){event.preventDefault();event.stopImmediatePropagation();}
+    },true));
+    await page.goto(base);await ready(page);
+    const home=page.locator('#installFromHome');
+    assert.ok(await home.isVisible());
+    await home.click();
+    assert.ok(await page.locator('#androidSteps ol').isVisible());
+    assert.equal(await page.locator('#installNative').isVisible(),false);
+    for(const outcome of ['dismissed','accepted']){
+      await go(page,'home');
+      await page.evaluate(outcome=>{
+        const event=new Event('beforeinstallprompt',{cancelable:true});
+        event.prompt=async()=>{window.promptCalls=(window.promptCalls||0)+1;};
+        event.userChoice=Promise.resolve({outcome});
+        window.dispatchEvent(event);
+      },outcome);
+      await home.click();
+      assert.match(await page.textContent('#installStatus'),outcome==='dismissed'?/已取消/:/已确认/);
+      assert.equal(await page.locator('#installNative').isVisible(),false);
+    }
+    assert.equal(await page.evaluate(()=>window.promptCalls),2);
+    await page.evaluate(()=>window.dispatchEvent(new Event('appinstalled')));
+    assert.match(await page.textContent('#installStatus'),/已安装/);
+    await go(page,'home');assert.equal(await home.isVisible(),false);
+    await context.close();
+  });
   await check('legacy migration preserves original bytes and creates only one profile',async()=>{
     const raw=JSON.stringify(legacy);const {context,page}=await setup(raw);
     const first=await read(page);assert.deepEqual(first.db.done,[1]);assert.equal(first.db.daily['2026-11-15'].seconds,60);
