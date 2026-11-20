@@ -758,3 +758,410 @@ while length:
         step = join(step, step)
 print(max(best[0]))`
 });
+
+Object.assign(pythonRefs, {
+  58: String.raw`pattern = input()
+exact = int(input())
+if not exact:
+    pattern = pattern.lower()
+for _ in range(int(input())):
+    line = input()
+    if pattern in (line if exact else line.lower()):
+        print(line)`,
+  59: String.raw`boards = [[[0,30]], [[0,30]]]
+turn = 0
+for _ in range(int(input())):
+    cmd, *args = input().split()
+    mine, other = boards[turn], boards[1-turn]
+    if cmd == "end":
+        turn ^= 1
+    elif cmd == "summon":
+        pos, attack, hp = map(int,args)
+        mine.insert(pos,[attack,hp])
+    else:
+        a,b = map(int,args)
+        mine[a][1] -= other[b][0]
+        other[b][1] -= mine[a][0]
+        if mine[a][1] <= 0:
+            mine.pop(a)
+        if b and other[b][1] <= 0:
+            other.pop(b)
+print(-1 if boards[0][0][1] <= 0 else int(boards[1][0][1] <= 0))
+for side in boards:
+    print(side[0][1])
+    print(len(side)-1, *(hp for attack,hp in side[1:]))`,
+  60: String.raw`import re
+from collections import Counter
+
+def side(expression):
+    total = Counter()
+    for term in expression.split("+"):
+        tokens = re.findall(r"[A-Z][a-z]*|[0-9]+|[()]",term)
+        scale = int(tokens.pop(0)) if tokens[0].isdigit() else 1
+        stack = [Counter()]
+        i = 0
+        while i < len(tokens):
+            token = tokens[i]
+            i += 1
+            if token == "(":
+                stack.append(Counter())
+                continue
+            group = stack.pop() if token == ")" else {token: 1}
+            k = 1
+            if i < len(tokens) and tokens[i].isdigit():
+                k = int(tokens[i])
+                i += 1
+            for element, count in group.items():
+                stack[-1][element] += k * count
+        for element, count in stack[0].items():
+            total[element] += scale * count
+    return total
+
+for _ in range(int(input())):
+    left, right = input().split("=")
+    print("Y" if side(left) == side(right) else "N")`,
+  61: String.raw`from collections import deque
+risk = {}
+recent = deque(maxlen=7)
+for day in range(int(input())):
+    r, m, *regions = map(int,input().split())
+    for region in regions:
+        start, end = risk.get(region,(day,day))
+        risk[region] = (day if end+1 < day else start, day+6)
+    recent.append([tuple(map(int,input().split())) for _ in range(m)])
+    users = set()
+    for batch in recent:
+        for visit, user, region in batch:
+            if region in risk:
+                start, end = risk[region]
+                if max(day-6,start) <= visit <= day <= end:
+                    users.add(user)
+    print(day,*sorted(users))`,
+  62: String.raw`import math, sys
+nums = iter(map(int,sys.stdin.buffer.read().split()))
+q = [[next(nums) for j in range(8)] for i in range(8)]
+n, mode = next(nums), next(nums)
+a = [[0]*8 for _ in range(8)]
+cells = sorted(((i,j) for i in range(8) for j in range(8)),
+               key=lambda p: (sum(p), p[0] if sum(p)%2 else -p[0]))
+for i,j in cells[:n]:
+    a[i][j] = next(nums) * (q[i][j] if mode else 1)
+basis = [[math.cos((2*i+1)*u*math.pi/16)*(1 if u else math.sqrt(0.5))
+          for u in range(8)] for i in range(8)]
+for i in range(8):
+    if mode != 2:
+        print(*a[i])
+        continue
+    row = []
+    for j in range(8):
+        s = sum(basis[i][u]*a[u][v]*basis[j][v] for u in range(8) for v in range(8))
+        row.append(max(0,min(255,math.floor(128.5+s/4))))
+    print(*row)`,
+  63: String.raw`mod = 1000000007
+n,m = map(int,input().split())
+tokens = input().split()
+for _ in range(m):
+    target,*coords = map(int,input().split())
+    stack = []
+    for s in tokens:
+        if s in ("+","-","*"):
+            b,db = stack.pop()
+            a,da = stack.pop()
+            if s == "*":
+                v,d = a*b, da*b+a*db
+            elif s == "-":
+                v,d = a-b, da-db
+            else:
+                v,d = a+b, da+db
+            stack.append((v%mod,d%mod))
+        elif s.startswith("x"):
+            i = int(s[1:])
+            stack.append((coords[i-1],int(i==target)))
+        else:
+            stack.append((int(s),0))
+    print(stack[-1][1]%mod)`,
+  64: String.raw`import sys
+nums = iter(map(int,sys.stdin.buffer.read().split()))
+n,m = next(nums),next(nums)
+w = [0]+[next(nums) for _ in range(n)]
+parent = [0,0]+[next(nums) for _ in range(n-1)]
+child = [[] for _ in range(n+1)]
+for u in range(2,n+1):
+    child[parent[u]].append(u)
+order,stack = [],[1]
+start,size = [0]*(n+1),[1]*(n+1)
+while stack:
+    u = stack.pop()
+    start[u] = len(order)
+    order.append(u)
+    stack.extend(child[u])
+for u in reversed(order):
+    size[parent[u]] += size[u]
+groups = [order]
+answers = [[] for _ in range(n+1)]
+while groups:
+    ids = groups.pop()
+    if len(ids)<2:
+        continue
+    sums = {u:w[u] for u in ids}
+    total = sum(sums.values())
+    for u in reversed(ids):
+        if parent[u] in sums:
+            sums[parent[u]] += sums[u]
+    ask = min(ids,key=lambda u:(abs(total-2*sums[u]),u))
+    yes,no = [],[]
+    for u in ids:
+        answers[u].append(ask)
+        (yes if start[ask]<=start[u]<start[ask]+size[ask] else no).append(u)
+    groups.extend((yes,no))
+for _ in range(m):
+    print(*answers[next(nums)])`,
+  65: String.raw`from collections import Counter, defaultdict
+from heapq import heappush, heappop
+n,m = map(int,input().split())
+words,weights = [],[]
+for _ in range(n):
+    word,weight = input().split()
+    words.append(list(word))
+    weights.append(int(weight))
+letters = sorted({c for word in words for c in word})
+scores, users, heap = Counter(), defaultdict(set), []
+
+def update(i,sign):
+    word = words[i]
+    for pair,count in Counter(zip(word,word[1:])).items():
+        scores[pair] += sign * weights[i] * count
+        if sign>0:
+            users[pair].add(i)
+        else:
+            users[pair].discard(i)
+        if scores[pair]:
+            a,b = pair
+            heappush(heap,(-scores[pair],len(a)+len(b),len(a),a+b,pair))
+
+for i in range(n):
+    update(i,1)
+for c in letters:
+    print(c)
+for _ in range(len(letters),m):
+    while heap and -heap[0][0] != scores[heap[0][-1]]:
+        heappop(heap)
+    if not heap:
+        break
+    pair = heappop(heap)[-1]
+    joined = "".join(pair)
+    print(joined)
+    for i in list(users[pair]):
+        update(i,-1)
+        word,out = words[i],[]
+        j = 0
+        while j<len(word):
+            if j+1<len(word) and (word[j],word[j+1])==pair:
+                out.append(joined)
+                j += 2
+            else:
+                out.append(word[j])
+                j += 1
+        words[i] = out
+        update(i,1)`,
+  66: String.raw`n,m = map(int,input().split())
+adj = [[] for _ in range(n+1)]
+for edge in range(m):
+    a,b = map(int,input().split())
+    adj[a].append((b,edge))
+    adj[b].append((a,edge))
+odd = sum(len(row)%2 for row in adj)
+start_odd = len(adj[1])%2
+for row in adj:
+    row.sort(reverse=True)
+stack,result,used = [1],[],set()
+while stack:
+    row = adj[stack[-1]]
+    while row and row[-1][1] in used:
+        row.pop()
+    if row:
+        v,edge = row.pop()
+        used.add(edge)
+        stack.append(v)
+    else:
+        result.append(stack.pop())
+if len(result)!=m+1 or odd not in (0,2) or (odd==2 and not start_odd):
+    print(-1)
+else:
+    print(*reversed(result))`,
+  67: String.raw`n = int(input())
+a = list(map(int,input().split()))
+limit = a[-1]-a[0]
+divisors = [[] for _ in range(limit+1)]
+for d in range(1,limit+1):
+    for k in range(d,limit+1,d):
+        divisors[k].append(d)
+dp = [1]+[0]*(n-1)
+seen = [-1]*(limit+1)
+for i in range(n):
+    for j in range(i+1,n):
+        gap = a[j]-a[i]
+        choices = 0
+        for d in divisors[gap]:
+            if d<gap and seen[d]!=i:
+                choices += 1
+            seen[d] = i
+        dp[j] = (dp[j]+dp[i]*choices)%1000000007
+print(dp[-1])`,
+  68: String.raw`n,m,target = map(int,input().split())
+fees = [tuple(map(int,input().split())) for _ in range(n)]
+stock = [[] for _ in range(n)]
+for _ in range(m):
+    price,j = map(int,input().split())
+    stock[j].append(price)
+dp = {0:0}
+for (base,each),goods in zip(fees,stock):
+    previous = dp.copy()
+    gross = 0
+    for k,value in enumerate(sorted(goods,reverse=True),1):
+        gross += value
+        cost = base+each*k
+        if gross<=cost:
+            continue
+        for p,profit in previous.items():
+            dp[p+cost] = max(dp.get(p+cost,0),profit+gross-cost)
+print(min(p for p in dp if dp[p]>=target))`,
+  69: String.raw`mod = 998244353
+m,l,r = map(int,input().split())
+k = list(map(int,input().split()))
+initial = [1]
+for i in range(1,m):
+    initial.append(sum(a*b for a,b in zip(k,reversed(initial)))%mod)
+
+def product(a,b):
+    v = [0]*(2*m-1)
+    for i,x in enumerate(a):
+        for j,y in enumerate(b):
+            v[i+j] += x*y
+    for d in range(2*m-2,m-1,-1):
+        top = v[d]%mod
+        for j,c in enumerate(k,1):
+            v[d-j] += top*c
+    return [x%mod for x in v[:m]]
+
+coef = [1]+[0]*(m-1)
+power = [k[0]] if m==1 else [0,1]+[0]*(m-2)
+e = l
+while e:
+    if e%2:
+        coef = product(coef,power)
+    power = product(power,power)
+    e //= 2
+for _ in range(l,r+1):
+    print(sum(a*b for a,b in zip(coef,initial))%mod)
+    top = coef[-1]
+    coef = [(a+top*b)%mod for a,b in zip([0]+coef[:-1],reversed(k))]`,
+  70: String.raw`n,m,l,k = map(int,input().split())
+color = list(map(int,input().split()))
+g,rev = ([[] for _ in range(n)] for _ in range(2))
+for a,b,w in zip(*(list(map(int,input().split())) for _ in range(3))):
+    g[a].append((b,w))
+    rev[b].append((a,w))
+
+def halves(root,steps,edges):
+    layers = [[{} for _ in range(n)]]
+    layers[0][root][1<<color[root]] = 0
+    for t in range(steps):
+        layer = [{} for _ in range(n)]
+        for u,row in enumerate(layers[-1]):
+            for v,w in edges[u]:
+                bit = 1<<color[v]
+                for mask,length in row.items():
+                    if not mask & bit:
+                        key = mask|bit
+                        layer[v][key] = max(layer[v].get(key,0),length+w)
+        layers.append(layer)
+    return layers
+
+left = halves(0,(l-1)//2,g)
+right = halves(n-1,l//2,rev)
+answer = 0
+for d in range(1,l):
+    for mid in range(n):
+        a,b = left[d//2][mid],right[(d+1)//2][mid]
+        if not a or not b:
+            continue
+        ranked = sorted(b.items(),key=lambda pair:-pair[1])
+        contains = [0]*k
+        for i,(mask,length) in enumerate(ranked):
+            while mask:
+                bit = mask & -mask
+                contains[bit.bit_length()-1] |= 1<<i
+                mask ^= bit
+        for mask,length in a.items():
+            mask ^= 1<<color[mid]
+            ok = (1<<len(ranked))-1
+            while mask and ok:
+                bit = mask & -mask
+                ok &= ~contains[bit.bit_length()-1]
+                mask ^= bit
+            if ok:
+                i = (ok & -ok).bit_length()-1
+                answer = max(answer,length+ranked[i][1])
+print(answer)`,
+  71: String.raw`import sys
+read = sys.stdin.buffer.readline
+n,m = map(int,read().split())
+rect = [tuple(map(int,read().split())) for _ in range(n)]
+ask = [tuple(map(int,read().split())) for _ in range(m)]
+base = 1 << (n-1).bit_length()
+answer = [0]*m
+
+def blocks(a,b):
+    l,r = base+a-1,base+b-1
+    while l<=r:
+        if l%2:
+            yield l
+            l += 1
+        if r%2==0:
+            yield r
+            r -= 1
+        l //= 2
+        r //= 2
+
+def ancestors(a):
+    i = base+a-1
+    while i:
+        yield i
+        i //= 2
+
+updates = sorted(range(n),key=lambda i:rect[i][0])
+queries = sorted(range(m),key=lambda i:ask[i][1])
+work = [(0,n,updates,queries)]
+while work:
+    lo,hi,updates,queries = work.pop()
+    if not queries:
+        continue
+    if lo==hi or not updates:
+        for i in queries:
+            answer[i] = lo
+        continue
+    mid = (lo+hi)//2
+    low,high,miss,hit = [],[],[],[]
+    for i in updates:
+        (high if rect[i][4]>mid else low).append(i)
+    tag,best = {},{}
+    j = 0
+    for i in queries:
+        x1,x2,y1,y2 = ask[i]
+        while j<len(high) and rect[high[j]][0]<=x2:
+            _,right,a,b,_ = rect[high[j]]
+            j += 1
+            for p in blocks(a,b):
+                tag[p] = max(tag.get(p,0),right)
+                best[p] = max(best.get(p,0),right)
+            for end in (a,b):
+                for p in ancestors(end):
+                    best[p] = max(best.get(p,0),right)
+        overlaps = any(best.get(p,0)>=x1 for p in blocks(y1,y2))
+        if not overlaps:
+            overlaps = any(tag.get(p,0)>=x1 for end in (y1,y2) for p in ancestors(end))
+        (hit if overlaps else miss).append(i)
+    work.extend(((lo,mid,low,miss),(mid+1,hi,high,hit)))
+print(*answer,sep="\n")`
+});

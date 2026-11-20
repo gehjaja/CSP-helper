@@ -9,7 +9,8 @@ const context = {document:{addEventListener(){}}};
 vm.createContext(context);
 vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
 context.validateBank();
-assert.equal(context.BANK.length,57);assert.equal(context.CHOICE.length,56);
+assert.equal(context.BANK.length,71);assert.equal(context.CHOICE.length,56);
+assert.deepEqual([1,2,3,4,5].map(slot=>context.BANK.filter(q=>q.source.endsWith('-'+slot)).length),[29,10,20,6,6]);
 const htmlIds=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 assert.equal(new Set(htmlIds).size,htmlIds.length,'duplicate HTML ids');
 // [修补] 同一道题的样例输入必须两两不同，否则同一组数据会展示出两个互斥答案。
@@ -19,7 +20,7 @@ for(const q of context.BANK){
 }
 for(let id=1;id<=context.BANK.length;id++)assert.ok(context.byId(id));
 for(let id=1;id<=56;id++)assert.ok(context.byId('c'+id));
-console.log('Bank structure, stable ids, categories, options, answer indices and required fields passed: 113 questions.');
+console.log('Bank structure, stable ids, categories, options, answer indices and required fields passed: 127 questions.');
 const compiler = process.env.CXX;
 if(compiler){
   const temp = fs.mkdtempSync(path.join(os.tmpdir(),'ziyong12-bank-'));
@@ -43,7 +44,7 @@ if(compiler){
         samples++;
       }
     }
-    console.log('All 57 C++14 programs compiled; '+samples+' sample cases passed.');
+    console.log('All 71 C++14 programs compiled; '+samples+' sample cases passed.');
   }finally{
     // Delete only the exact directory returned by mkdtemp, under the system temp root.
     assert.equal(path.dirname(path.resolve(temp)),path.resolve(os.tmpdir()));
