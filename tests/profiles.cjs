@@ -68,10 +68,19 @@ async function importData(page,data) {
   browser=await chromium.launch({headless:true,channel:process.env.BROWSER_CHANNEL || 'chrome'});
   await check('Android APK downloads the supplied release from home and profile',async()=>{
     const {page,context}=await setup();
+    const githubUrl='https://raw.githubusercontent.com/gehjaja/CSP-helper/c96eb99dc744e01069579acfe393206768305f34/downloads/CSP-helper-v1.0.apk';
+    let requests=0;
+    await page.route(githubUrl,route=>{
+      requests++;
+      if(requests===2) return route.abort();
+      return route.fulfill({path:path.join(root,'downloads','CSP-helper-v1.0.apk'),contentType:'application/octet-stream'});
+    });
     for(const view of ['home','me']){
       await go(page,view);
       const link=page.getByRole('link',{name:'下载安卓版 APK',exact:true});
       const [download]=await Promise.all([page.waitForEvent('download'),link.click()]);
+      assert.equal(requests,view==='home'?1:2);
+      assert.ok(view==='home'?download.url().startsWith('blob:'):download.url()===base+'/downloads/CSP-helper-v1.0.apk');
       assert.equal(download.suggestedFilename(),'CSP备考助手-v1.0.apk');
       const bytes=fs.readFileSync(await download.path());
       assert.equal(require('node:crypto').createHash('sha256').update(bytes).digest('hex'),
