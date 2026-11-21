@@ -1,0 +1,55 @@
+name: Windows offline installer
+on:
+  pull_request:
+    paths: ['windows/**', '.github/workflows/offline-release.yml']
+  push:
+    branches: [main]
+    paths: ['windows/version.txt']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts --no-package-lock
+      - run: node tests/bank.cjs
+      - name: Build and install
+        shell: pwsh
+        run: |
+          ./windows/package.ps1 -OutputDir "$env:RUNNER_TEMP/stage"
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $compiler)) { choco install innosetup -y --no-progress; if ($LASTEXITCODE) { throw 'Inno Setup unavailable' } }
+          & $compiler "/DStage=$env:RUNNER_TEMP/stage" "/O$env:RUNNER_TEMP/output" windows/installer.iss
+          if ($LASTEXITCODE) { throw 'Installer compilation failed' }
+          $installer = Get-Item "$env:RUNNER_TEMP/output/*.exe"
+          $result = Start-Process $installer.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($result.ExitCode) { throw 'Installation failed' }
+          $app = Start-Process "$env:LOCALAPPDATA/Programs/CSP-helper/CSP-helper.exe" -ArgumentList '--test' -PassThru
+          try { node windows/smoke.cjs; if ($LASTEXITCODE) { throw 'Offline test failed' } } finally { $app.Kill() }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: ${{ runner.temp }}/output/*.exe
+  release:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: installers
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo '6671ef30302c708cbb87152c877bbf8fa0fd55f40e4a8b2e65b7dce8c0d4bb86  downloads/CSP-helper-v1.0.apk' | sha256sum -c -
+          tag=$(cat windows/version.txt)
+          gh release create "$tag" --target "$GITHUB_SHA" --title "CSP 备考助手 v1.0 · Windows 离线版与安卓版" --notes "Windows 下载 Setup.exe，安装后从桌面打开。题库与 Python 公开样例可断网使用，外部 OJ 需要联网。安卓下载 APK 后按系统提示安装。" installers/*.exe downloads/CSP-helper-v1.0.apk
