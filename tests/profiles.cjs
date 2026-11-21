@@ -66,7 +66,7 @@ async function importData(page,data) {
 (async()=>{
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));base='http://127.0.0.1:'+server.address().port;
   browser=await chromium.launch({headless:true,channel:process.env.BROWSER_CHANNEL || 'chrome'});
-  await check('Android APK downloads the supplied release from home and profile',async()=>{
+  await check('Header release links fit on mobile and profile APK keeps its fallback',async()=>{
     const {page,context}=await setup();
     const githubUrl='https://raw.githubusercontent.com/gehjaja/CSP-helper/c96eb99dc744e01069579acfe393206768305f34/downloads/CSP-helper-v1.0.apk';
     let requests=0;
@@ -75,12 +75,19 @@ async function importData(page,data) {
       if(requests===2) return route.abort();
       return route.fulfill({path:path.join(root,'downloads','CSP-helper-v1.0.apk'),contentType:'application/octet-stream'});
     });
-    for(const view of ['home','me']){
-      await go(page,view);
+    const links=page.getByRole('navigation',{name:'下载安装包'}).getByRole('link');
+    await page.setViewportSize({width:320,height:844});
+    for(const [i,filename] of ['CSP-helper-Windows-v1.0-Setup.exe','CSP-helper-v1.0.apk'].entries()){
+      assert.equal(await links.nth(i).getAttribute('href'),'https://github.com/gehjaja/CSP-helper/releases/download/v1.0.0/'+filename);
+      const box=await links.nth(i).boundingBox();
+      assert.ok(box && box.x>=0 && box.x+box.width<=320 && box.y<80);
+    }
+    await go(page,'me');
+    for(const attempt of [1,2]){
       const link=page.getByRole('link',{name:'下载安卓版 APK',exact:true});
       const [download]=await Promise.all([page.waitForEvent('download'),link.click()]);
-      assert.equal(requests,view==='home'?1:2);
-      assert.ok(view==='home'?download.url().startsWith('blob:'):download.url()===base+'/downloads/CSP-helper-v1.0.apk');
+      assert.equal(requests,attempt);
+      assert.ok(attempt===1?download.url().startsWith('blob:'):download.url()===base+'/downloads/CSP-helper-v1.0.apk');
       assert.equal(download.suggestedFilename(),'CSP备考助手-v1.0.apk');
       const bytes=fs.readFileSync(await download.path());
       assert.equal(require('node:crypto').createHash('sha256').update(bytes).digest('hex'),

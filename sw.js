@@ -1,5 +1,5 @@
 const prefix = "csp-practice:" + self.registration.scope + ":";
-const cacheName = prefix + "2026-11-21.1";
+const cacheName = prefix + "2026-11-21.2";
 const files = ["index.html","paper.js","review.js","runner.js","sample-frame.html","python-refs.js","manifest.webmanifest","icon-192.png","icon-512.png"];
 const urls = files.map(file => new URL(file,self.registration.scope).href);
 self.addEventListener("install", event => {
